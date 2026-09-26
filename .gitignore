@@ -16,7 +16,12 @@ data/jobs/*.json
 data/cache/
 data/zenodo/
 data/tiles/
+# Checkpoint weights: include trained model, ignore temporary/scratch weights
 models/*.pt
+!models/oil_unet_best.pt
+
+# Scratch & temporary debug screenshots in root
+/*.png
 
 # Keep the scene index so a checkout knows what it should fetch.
 !data/sar/scenes.json

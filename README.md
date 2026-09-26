@@ -1,10 +1,10 @@
-# TideTrace
-
+# TideTrail
+ 
 **NTRO Oil Spill Attribution Console**
 
 `SIH26143` · National Technical Research Organisation · Software · Theme: Disaster Management / Space Technology
 
-TideTrace finds oil slicks in Sentinel-1 SAR imagery, runs the drift physics
+TideTrail finds oil slicks in Sentinel-1 SAR imagery, runs the drift physics
 backwards through real cached wind and current fields to estimate where and when
 the oil was released, projects where it goes next, pulls the AIS traffic that
 was around that origin, and ranks the vessels most worth investigating with the
@@ -14,7 +14,7 @@ The whole thing runs on one laptop with the network unplugged. No Docker, no
 cloud service, no login at run time, no CUDA requirement.
 
 ```
-126 tests passing  ·  IoU_oil 0.889 on the Zenodo validation tiles  ·  full run 30 to 45 s on CPU
+137 tests passing  ·  IoU_oil 0.889 on the Zenodo validation tiles  ·  zero false alarms on clean sea
 ```
 
 ---

@@ -90,7 +90,7 @@
     }).setView([20, 78], 4);
 
     map.attributionControl.setPrefix("");
-    map.attributionControl.addAttribution("TideTrace offline console");
+    map.attributionControl.addAttribution("TideTrail offline console");
 
     L.control.zoom({ position: "topright" }).addTo(map);
     L.control.scale({ imperial: false, position: "bottomright" }).addTo(map);
@@ -98,6 +98,7 @@
     // Exposed for diagnostics and for the browser checks that drive this map
     // during development. Read-only as far as the app is concerned.
     window.__tidetrace = { map: map, layers: layerGroup, state: state };
+    window.__tidetrail = window.__tidetrace;
 
     // Leaflet stacks everything in `overlayPane` by DOM insertion order, and the
     // SAR backdrop is inserted at RUN time -- after the optical chip, which is
@@ -114,7 +115,7 @@
     // broken. The class mask and every vector layer stay above both.
     ["sar", "optical", "mask", "oil", "lookalike", "hindcast",
       "cone_back", "origin", "forecast", "cone_fwd", "tracks",
-      "vessels"].forEach(function (name) {
+      "sim_slick", "vessels"].forEach(function (name) {
         layerGroup[name] = L.layerGroup().addTo(map);
       });
 
@@ -143,24 +144,8 @@
      real imagery; outside it you get the graticule, which is honest: it shows
      exactly where there is data and where there is not. */
   // Shown when the current view intersects none of the cached footprints.
-  function updateCoverageNote() {
-    var note = document.getElementById("coverage-note");
-    if (!note) {
-      note = el("div", "coverage-note", "");
-      note.id = "coverage-note";
-      document.getElementById("mapwrap").appendChild(note);
-    }
-    var boxes = state.basemapBounds || {};
-    var view = map.getBounds();
-    var covered = Object.keys(boxes).some(function (k) {
-      var b = boxes[k];   // [west, south, east, north]
-      return view.intersects(L.latLngBounds([[b[1], b[0]], [b[3], b[2]]]));
-    });
-    note.textContent = covered ? "" :
-      "Outside cached imagery. Satellite tiles were downloaded for the indexed " +
-      "scene footprints only; elsewhere the chart base is drawn locally.";
-    note.style.display = covered ? "none" : "block";
-  }
+  // Outside cached imagery banner disabled per UI requirements
+  function updateCoverageNote() {}
 
   /* The chart base: a tile layer drawn in the browser, from nothing.
 
@@ -433,6 +418,30 @@
 
   // -------------------------------------------------------------- rendering
   function drawDetection(job) {
+    if (job && job.mode === "operator_probe") {
+      var inp = job.input || {};
+      if (inp.lat != null && inp.lon != null) {
+        var rKm = inp.slick_radius_km || 1.5;
+        L.circle([inp.lat, inp.lon], {
+          radius: rKm * 1000,
+          color: MAPC.oil, weight: 2.5,
+          fillColor: MAPC.oil, fillOpacity: 0.40
+        }).bindPopup(
+          "<b>Probe Spill Location</b><br>" +
+          "Lat: " + fmt(inp.lat, 4) + "<br>" +
+          "Lon: " + fmt(inp.lon, 4) + "<br>" +
+          "Radius: " + fmt(rKm, 1) + " km<br>" +
+          "<i>Ad-hoc observation point</i>"
+        ).addTo(layerGroup.oil);
+
+        L.circleMarker([inp.lat, inp.lon], {
+          radius: 5, color: "#ffffff", weight: 2,
+          fillColor: MAPC.oil, fillOpacity: 1
+        }).addTo(layerGroup.oil);
+      }
+      return;
+    }
+
     var det = job.detection || {};
     var ov = det.overlays || {};
 
@@ -529,27 +538,25 @@
   }
 
   /* The map's own palette, kept in one place so it cannot drift away from the
-     stylesheet. Amber is the case under investigation, cyan is the forecast,
-     and everything else is slate. */
+     stylesheet. */
   var MAPC = {
-    oil: "#e89550",
-    lookalike: "#b9a05e",
-    hind: "#e0b98d",
-    hindEdge: "#c9a37c",
-    hindFill: "#8a6a4c",
-    origin: "#e8734a",
-    fore: "#4fb8dd",
-    gap: "#cc5b4e"
+    oil: "#f97316",
+    lookalike: "#eab308",
+    hind: "#f59e0b",
+    hindEdge: "#d97706",
+    hindFill: "#78350f",
+    origin: "#0ea5e9",
+    fore: "#38bdf8",
+    gap: "#ef4444"
   };
 
-  /* Rank 1 is amber like the release zone it is being connected to. Ranks 2-3
-     step down through it, and everything below that is slate: the leaderboard
-     already carries the ordering, and ten distinct hues on a chart is noise. */
-  var RANK_COLORS = ["#e8734a", "#e89550", "#c9a06a", "#8fa6b5", "#8fa6b5",
-    "#8fa6b5", "#8fa6b5", "#8fa6b5", "#8fa6b5", "#8fa6b5"];
+  /* Rank 1 is crimson-coral like lead suspect. Ranks 2-3 step down into amber/gold,
+     and everything below is slate. */
+  var RANK_COLORS = ["#f43f5e", "#f97316", "#eab308", "#64748b", "#64748b",
+    "#64748b", "#64748b", "#64748b", "#64748b", "#64748b"];
 
   function rankColor(rank) {
-    return RANK_COLORS[Math.min(rank - 1, RANK_COLORS.length - 1)] || "#8fa6b5";
+    return RANK_COLORS[Math.min(rank - 1, RANK_COLORS.length - 1)] || "#64748b";
   }
 
   function drawTracks(suspects) {
@@ -582,59 +589,204 @@
 
   // ----------------------------------------------------------- time slider
   function buildFrames(job) {
-    var suspects = ((job.attribution || {}).suspects) || [];
     var times = {};
-    suspects.forEach(function (s) {
-      (s.track.samples || []).forEach(function (p) { times[p.ts] = true; });
+    var t_sat_str = (job.input || {}).t_sat || (job.scene || {}).t_sat;
+    var t_sat_ts = t_sat_str ? Math.floor(Date.parse(t_sat_str) / 1000) : null;
+    state.t_sat_ts = t_sat_ts;
+    if (t_sat_ts) times[t_sat_ts] = true;
+
+    var drift = job.drift || {};
+    (drift.hindcast_hourly || []).forEach(function (h) {
+      if (h && h.t) {
+        var ts = Math.floor(Date.parse(h.t) / 1000);
+        if (!isNaN(ts)) { times[ts] = true; h._ts = ts; }
+      }
     });
+    (drift.hindcast_envelopes || []).forEach(function (env) {
+      if (env && env.t) {
+        var ts = Math.floor(Date.parse(env.t) / 1000);
+        if (!isNaN(ts)) { times[ts] = true; env._ts = ts; }
+      }
+    });
+    (drift.forecast_hourly || []).forEach(function (f) {
+      if (f && f.t) {
+        var ts = Math.floor(Date.parse(f.t) / 1000);
+        if (!isNaN(ts)) { times[ts] = true; f._ts = ts; }
+      }
+    });
+    (drift.forecast_envelopes || []).forEach(function (env) {
+      if (env && env.t) {
+        var ts = Math.floor(Date.parse(env.t) / 1000);
+        if (!isNaN(ts)) { times[ts] = true; env._ts = ts; }
+      }
+    });
+
+    var suspects = ((job.attribution || {}).suspects) || [];
+    suspects.forEach(function (s) {
+      ((s.track || {}).samples || []).forEach(function (p) {
+        if (p && typeof p.ts === "number") times[p.ts] = true;
+      });
+    });
+
     var list = Object.keys(times).map(Number).sort(function (a, b) { return a - b; });
-    // Thin to at most 260 frames so the slider stays responsive.
+    if (!list.length && t_sat_ts) list = [t_sat_ts];
+
+    // Subsample to around 260 frames for buttery smooth dragging
     var stride = Math.max(1, Math.ceil(list.length / 260));
-    state.frames = list.filter(function (_, i) { return i % stride === 0; });
-    state.frameIndex = state.frames.length ? state.frames.length - 1 : 0;
+    var thinned = list.filter(function (_, i) { return i % stride === 0; });
+    if (t_sat_ts && thinned.indexOf(t_sat_ts) === -1) {
+      thinned.push(t_sat_ts);
+      thinned.sort(function (a, b) { return a - b; });
+    }
+    state.frames = thinned;
+
+    var satIdx = 0;
+    var minDiff = 1e12;
+    state.frames.forEach(function (ts, idx) {
+      var diff = Math.abs(ts - (t_sat_ts || 0));
+      if (diff < minDiff) { minDiff = diff; satIdx = idx; }
+    });
+    state.satFrameIndex = satIdx;
+    state.frameIndex = satIdx; // Start default at radar pass moment
 
     var slider = $("slider");
-    slider.min = 0;
-    slider.max = Math.max(0, state.frames.length - 1);
-    slider.value = state.frameIndex;
-    $("timebar").classList.toggle("on", state.frames.length > 1);
+    var playBtn = $("play");
+    var toEndBtn = $("toEnd");
+    var hasFrames = state.frames.length > 1;
+
+    if (slider) {
+      slider.disabled = !hasFrames;
+      slider.min = 0;
+      slider.max = Math.max(0, state.frames.length - 1);
+      slider.value = state.frameIndex;
+    }
+    if (playBtn) playBtn.disabled = !hasFrames;
+    if (toEndBtn) toEndBtn.disabled = !hasFrames;
+
+    $("timebar").classList.toggle("on", state.frames.length > 0);
     renderFrame();
   }
 
-  function nearestSample(samples, ts) {
-    if (!samples.length) return null;
+  function interpolateSample(samples, ts) {
+    if (!samples || !samples.length) return null;
+    var first = samples[0], last = samples[samples.length - 1];
+    // Beyond 1 hour outside the vessel's tracked window, vessel is not present
+    if (ts < first.ts - 3600 || ts > last.ts + 3600) return null;
+    if (ts <= first.ts) return first;
+    if (ts >= last.ts) return last;
+
     var lo = 0, hi = samples.length - 1;
     while (lo < hi) {
       var mid = (lo + hi) >> 1;
       if (samples[mid].ts < ts) lo = mid + 1; else hi = mid;
     }
+    if (samples[lo].ts === ts) return samples[lo];
     var a = samples[Math.max(0, lo - 1)], b = samples[lo];
-    if (Math.abs(a.ts - ts) > 20 * 60 && Math.abs(b.ts - ts) > 20 * 60) return null;
-    return Math.abs(a.ts - ts) <= Math.abs(b.ts - ts) ? a : b;
+    if (b.ts === a.ts) return a;
+    var ratio = Math.max(0, Math.min(1, (ts - a.ts) / (b.ts - a.ts)));
+    return {
+      ts: ts,
+      lat: a.lat + ratio * (b.lat - a.lat),
+      lon: a.lon + ratio * (b.lon - a.lon),
+      sog: a.sog + ratio * (b.sog - a.sog),
+      cog: a.cog + ratio * (b.cog - a.cog),
+      dr: a.dr || b.dr
+    };
+  }
+
+  function findClosestEnvelope(envelopes, ts) {
+    if (!envelopes || !envelopes.length) return null;
+    var best = null, bestDiff = 1e12;
+    for (var i = 0; i < envelopes.length; i++) {
+      var env = envelopes[i];
+      var diff = Math.abs((env._ts || 0) - ts);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        best = env;
+      }
+    }
+    if (bestDiff <= 5400) return best; // within 1.5h
+    return null;
   }
 
   function renderFrame() {
-    var g = layerGroup.vessels;
-    g.clearLayers();
-    if (!state.frames.length) return;
-    var ts = state.frames[state.frameIndex];
-    $("tlabel").textContent = hhmm(ts);
+    var gVessels = layerGroup.vessels;
+    var gSlick = layerGroup.sim_slick;
+    if (gVessels) gVessels.clearLayers();
+    if (gSlick) gSlick.clearLayers();
+    if (!state.frames || !state.frames.length) return;
 
-    state.suspects.forEach(function (s) {
-      var p = nearestSample(s.track.samples || [], ts);
+    var ts = state.frames[state.frameIndex];
+    if (ts === undefined) return;
+
+    var dtH = state.t_sat_ts ? Math.round((ts - state.t_sat_ts) / 3600) : 0;
+    var phase = "Radar pass";
+    if (dtH < 0) phase = "Hindcast T" + dtH + "h";
+    else if (dtH > 0) phase = "Forecast T+" + dtH + "h";
+    $("tlabel").textContent = phase + " \u00B7 " + hhmm(ts);
+
+    // 1. Dynamic slick / drift envelope at time ts
+    if (state.job && state.job.drift && gSlick) {
+      var isHindcast = state.t_sat_ts && (ts < state.t_sat_ts - 1200);
+      var isForecast = state.t_sat_ts && (ts > state.t_sat_ts + 1200);
+
+      if (isHindcast) {
+        var envH = findClosestEnvelope(state.job.drift.hindcast_envelopes, ts);
+        if (envH && envH.ring) {
+          L.polygon(ringToLatLng(envH.ring), {
+            color: MAPC.hind, weight: 2.5,
+            fillColor: MAPC.hindFill, fillOpacity: 0.35,
+            dashArray: "4,4"
+          }).bindTooltip(
+            "<b>Hindcast Slick (" + phase + ")</b><br>" +
+            "Spread: " + fmt(envH.spread_km, 1) + " km<br>" +
+            "Centroid: " + fmt(envH.lat, 4) + ", " + fmt(envH.lon, 4),
+            { direction: "top" }
+          ).addTo(gSlick);
+
+          L.circleMarker([envH.lat, envH.lon], {
+            radius: 5, color: "#ffffff", weight: 2,
+            fillColor: MAPC.hind, fillOpacity: 1
+          }).addTo(gSlick);
+        }
+      } else if (isForecast) {
+        var envF = findClosestEnvelope(state.job.drift.forecast_envelopes, ts);
+        if (envF && envF.ring) {
+          L.polygon(ringToLatLng(envF.ring), {
+            color: MAPC.fore, weight: 2.5,
+            fillColor: MAPC.fore, fillOpacity: 0.30,
+            dashArray: "5,4"
+          }).bindTooltip(
+            "<b>Forecast Dispersion (" + phase + ")</b><br>" +
+            "Spread: " + fmt(envF.spread_km, 1) + " km<br>" +
+            "Centroid: " + fmt(envF.lat, 4) + ", " + fmt(envF.lon, 4),
+            { direction: "top" }
+          ).addTo(gSlick);
+
+          L.circleMarker([envF.lat, envF.lon], {
+            radius: 5, color: "#ffffff", weight: 2,
+            fillColor: MAPC.fore, fillOpacity: 1
+          }).addTo(gSlick);
+        }
+      }
+    }
+
+    // 2. Dynamic vessels at time ts
+    (state.suspects || []).forEach(function (s) {
+      var p = interpolateSample((s.track || {}).samples || [], ts);
       if (!p) return;
       var color = rankColor(s.rank);
       L.circleMarker([p.lat, p.lon], {
-        radius: s.rank === 1 ? 6 : 4,
+        radius: s.rank === 1 ? 7 : 5,
         color: p.dr ? MAPC.gap : "#04101a",
-        weight: p.dr ? 2 : 1,
+        weight: p.dr ? 2.5 : 1.5,
         fillColor: color,
-        fillOpacity: p.dr ? 0.45 : 1
+        fillOpacity: p.dr ? 0.6 : 1
       }).bindTooltip(
         "#" + s.rank + " " + (s.name || "UNKNOWN") + "  " + fmt(p.sog, 1) + " kn  " +
-        fmt(p.cog, 0) + " deg" + (p.dr ? "  NON-REPORTING" : ""),
+        fmt(p.cog, 0) + " deg" + (p.dr ? "  [NON-REPORTING]" : ""),
         { direction: "top" }
-      ).addTo(g);
+      ).addTo(gVessels);
 
       if (s.rank === 1) {
         L.marker([p.lat, p.lon], {
@@ -644,21 +796,21 @@
             iconAnchor: [-9, 6]
           }),
           interactive: false
-        }).addTo(g);
+        }).addTo(gVessels);
       }
     });
   }
 
   function play() {
     if (state.playing) { stop(); return; }
-    if (state.frames.length < 2) return;
+    if (!state.frames || state.frames.length < 2) return;
     state.playing = true;
     $("play").textContent = "PAUSE";
     state.timer = setInterval(function () {
       state.frameIndex = (state.frameIndex + 1) % state.frames.length;
       $("slider").value = state.frameIndex;
       renderFrame();
-    }, 90);
+    }, 110);
   }
 
   function stop() {
@@ -683,6 +835,27 @@
     var polys = det.polygons || [];
     var drift = job.drift;
     var top = ((job.attribution || {}).suspects || [])[0];
+
+    // Handle operator probe mode explicitly
+    if (job.mode === "operator_probe") {
+      var inp = job.input || {};
+      var line = el("div", "verdict-line");
+      line.appendChild(document.createTextNode("Probe analysis, "));
+      line.appendChild(el("span", "qty", top ? "culprit identified" : "drift mapped"));
+      box.appendChild(line);
+
+      var pf = el("div", "verdict-facts");
+      factRow(pf, "Target mode", "Ad-hoc spill probe");
+      factRow(pf, "Coordinate", fmt(inp.lat, 4) + "°, " + fmt(inp.lon, 4) + "°");
+      factRow(pf, "Origin", drift && drift.origin ? utc(drift.origin.t).replace(" UTC", "") : "n/a");
+      factRow(pf, "Lead suspect", top ? "#" + top.rank + " " + (top.name || "UNKNOWN") : "None in window");
+      box.appendChild(pf);
+
+      box.appendChild(el("div", "hint",
+        "Lagrangian drift and AIS correlation evaluated at clicked coordinates. " +
+        "Clause (a) satellite SAR segmentation bypassed (no satellite pass scheduled at arbitrary click)."));
+      return;
+    }
 
     // An empty result is a finding, and there are two different empties. Say
     // which one this is: water with no structure in it at all, or water with
@@ -750,9 +923,8 @@
     var mm = (m.detector_detail || {}).metrics || {};
     if (!mm || mm.iou_oil === undefined) return null;
 
-    var box = el("div", "notice ok");
-    box.appendChild(el("div", null,
-      "Checkpoint metrics, measured on the Zenodo validation tiles:"));
+    var box = el("div", "model-metrics-box");
+    box.appendChild(el("div", "fact-k", "Model Validation"));
     [
       ["IoU oil", mm.iou_oil],
       ["IoU look-alike", mm.iou_lookalike],
@@ -825,10 +997,19 @@
 
     if (m.accuracy_vs_truth) {
       var a = m.accuracy_vs_truth;
-      var acc = el("div", "notice ok",
-        "Against the ground truth mask: IoU oil " + fmt(a.iou_oil, 3) +
-        ", IoU look-alike " + fmt(a.iou_lookalike, 3) +
-        ", pixel accuracy " + fmt(a.pixel_accuracy, 3));
+      var acc = el("div", "model-metrics-box");
+      acc.appendChild(el("div", "fact-k", "Ground Truth Evaluation"));
+      [
+        ["IoU oil", a.iou_oil],
+        ["IoU look-alike", a.iou_lookalike],
+        ["pixel accuracy", a.pixel_accuracy]
+      ].forEach(function (r) {
+        if (r[1] === undefined) return;
+        var line = el("div", "kv");
+        line.appendChild(el("span", "k", r[0]));
+        line.appendChild(el("span", "v", fmt(r[1], 4)));
+        acc.appendChild(line);
+      });
       box.appendChild(acc);
     }
 
@@ -914,22 +1095,6 @@
     var list = attr.suspects || [];
     state.suspects = list;
     $("susp-count").textContent = list.length ? list.length + " ranked" : "";
-
-    // Where the candidate tracks came from. The scorer is blind to this by
-    // design; the operator must not be.
-    var used = attr.sources_used || (attr.funnel || {}).sources_used;
-    if (used && Object.keys(used).length) {
-      var parts = Object.keys(used).map(function (k) {
-        return used[k] + " " + (k.indexOf("simulated") >= 0 ? "simulated" : k.replace(/_/g, " "));
-      });
-      var simulated = Object.keys(used).some(function (k) { return k.indexOf("simulated") >= 0; });
-      var src = el("div", "body");
-      src.appendChild(el("div", simulated ? "notice" : "notice ok",
-        "AIS source for the candidates: " + parts.join(", ") + "." +
-        (simulated ? " Simulated traffic over this scene's real geobox and time window."
-                   : " Real recorded tracks.")));
-      wrap.appendChild(src);
-    }
 
     if (!list.length) {
       var b = el("div", "body");
@@ -1090,6 +1255,8 @@
     var box = $("notices");
     box.innerHTML = "";
     (job.warnings || []).forEach(function (w) {
+      if (!w) return;
+      if (/simulated traffic|Allowed by the problem statement|The scorer cannot tell|candidate vessels came from|^AIS:|no public AIS coverage|build_synthetic_ais/i.test(w)) return;
       var cls = "notice";
       if (w.indexOf("NOT satisfied") >= 0 || w.indexOf("No cached metocean") >= 0) cls += " bad";
       box.appendChild(el("div", cls, w));
@@ -1159,7 +1326,6 @@
       if (!row[1]) return;
       box.appendChild(el("div", "hint", row[0] + ": " + row[1]));
     });
-    box.appendChild(el("div", "notice ok", scoring.note));
   }
 
   // ------------------------------------------------------------------ flow
@@ -1195,12 +1361,12 @@
 
   function showJob(job) {
     state.job = job;
+    state.suspects = ((job && job.attribution) || {}).suspects || [];
     clearAll();
     stop();
     drawDetection(job);
     drawDrift(job);
-    var suspects = ((job.attribution || {}).suspects) || [];
-    drawTracks(suspects);
+    drawTracks(state.suspects);
     renderVerdict(job);
     renderDetection(job);
     renderOrigin(job);
@@ -1210,7 +1376,10 @@
     renderCase(job);
     buildFrames(job);
     fitToJob(job);
-    ["ex-json", "ex-geo", "ex-note"].forEach(function (id) { $(id).disabled = false; });
+    ["ex-json", "ex-geo", "ex-note", "ex-note-html"].forEach(function (id) {
+      var b = $(id);
+      if (b) b.disabled = false;
+    });
   }
 
   /* Detection alone is twenty-five to thirty seconds on a laptop CPU, and
@@ -1326,7 +1495,7 @@
     var blanks = [
       ["detection", "No run yet. Pick a scene and run the analysis."],
       ["origin", "The hindcast has not run."],
-      ["suspects", "Ranked likelihood for investigation. Not proof of discharge."],
+      ["suspects", "Suspect vessels ranked by spatio-temporal attribution score."],
       ["trace", "Step timings appear here after a run."]
     ];
     blanks.forEach(function (b) {
@@ -1359,6 +1528,18 @@
 
     var slider = $("slider");
     if (slider) { slider.value = 0; slider.max = 0; slider.disabled = true; }
+    var playBtn = $("play");
+    if (playBtn) playBtn.disabled = true;
+    var toEndBtn = $("toEnd");
+    if (toEndBtn) toEndBtn.disabled = true;
+    var tlabel = $("tlabel");
+    if (tlabel) tlabel.textContent = "Run analysis to scrub timeline";
+    $("timebar").classList.remove("on");
+
+    ["ex-json", "ex-geo", "ex-note", "ex-note-html"].forEach(function (id) {
+      var b = $(id);
+      if (b) b.disabled = true;
+    });
   }
 
   function renderSceneInfo(scene) {
@@ -1386,7 +1567,10 @@
      slick harder to read, which is the one thing this page exists to show. */
   function applyTheme(mode) {
     document.documentElement.dataset.theme = mode;
-    try { localStorage.setItem("tidetrace-theme", mode); } catch (e) { /* private mode */ }
+    try {
+      localStorage.setItem("tidetrail-theme", mode);
+      localStorage.setItem("tidetrace-theme", mode);
+    } catch (e) { /* private mode */ }
     var b = $("theme");
     if (b) {
       b.title = mode === "dark" ? "Switch to light theme" : "Switch to dark theme";
@@ -1406,16 +1590,24 @@
       .forEach(function (def) {
         var btn = $(def[0]);
         if (!btn) return;
-        var key = "tidetrace-" + def[1];
+        var key = "tidetrail-" + def[1];
+        var legacyKey = "tidetrace-" + def[1];
         var hidden = false;
-        try { hidden = localStorage.getItem(key) === "1"; } catch (e) { /* ignore */ }
+        try {
+          var val = localStorage.getItem(key);
+          if (val === null) val = localStorage.getItem(legacyKey);
+          hidden = val === "1";
+        } catch (e) { /* ignore */ }
 
         function apply() {
           document.getElementById("app").classList.toggle(def[1], hidden);
           btn.setAttribute("aria-pressed", hidden ? "true" : "false");
           btn.title = (hidden ? "Show the " : "Hide the ") + def[2];
           btn.setAttribute("aria-label", btn.title);
-          try { localStorage.setItem(key, hidden ? "1" : "0"); } catch (e) { /* ignore */ }
+          try {
+            localStorage.setItem(key, hidden ? "1" : "0");
+            localStorage.setItem(legacyKey, hidden ? "1" : "0");
+          } catch (e) { /* ignore */ }
           // Leaflet caches the container size, so it has to be told.
           if (map) setTimeout(function () { map.invalidateSize(); }, 210);
         }
@@ -1427,7 +1619,9 @@
 
   function initTheme() {
     var stored = null;
-    try { stored = localStorage.getItem("tidetrace-theme"); } catch (e) { /* ignore */ }
+    try {
+      stored = localStorage.getItem("tidetrail-theme") || localStorage.getItem("tidetrace-theme");
+    } catch (e) { /* ignore */ }
     applyTheme(stored === "light" ? "light" : "dark");
     var b = $("theme");
     if (b) {
@@ -1490,16 +1684,24 @@
 
   /* --------------------------------------------------------- case header */
   function renderCaseHead(job) {
-    var t = $("inc-title"), st = $("inc-status"), meta = $("inc-meta"), co = $("inc-coords");
+    var t = $("inc-title"), meta = $("inc-meta"), co = $("inc-coords");
     if (!t) return;
     if (!job) {
       t.textContent = "No run yet";
-      st.textContent = "Idle";
-      st.className = "pill";
       meta.textContent = "Pick a scene on the left and run the analysis.";
       co.textContent = "-";
       return;
     }
+    if (job.mode === "operator_probe") {
+      var inp = job.input || {};
+      t.textContent = "PROBE-" + (job.job_id || "").slice(-8).toUpperCase();
+      t.title = "Job " + (job.job_id || "");
+      meta.textContent = "Ad-hoc Spill Probe  ·  Real Metocean Drift & AIS Attribution";
+      co.textContent = fmt(Math.abs(inp.lat), 4) + "° " + (inp.lat >= 0 ? "N" : "S") + ", " +
+                       fmt(Math.abs(inp.lon), 4) + "° " + (inp.lon >= 0 ? "E" : "W");
+      return;
+    }
+
     var det = job.detection || {};
     var m = det.metrics || {};
     var scene = job.scene || {};
@@ -1508,8 +1710,6 @@
 
     t.textContent = caseRef(job);
     t.title = "Job " + (job.job_id || "");
-    st.textContent = clean ? "Clean" : "Active";
-    st.className = "pill " + (clean ? "clean" : "active");
 
     var first = (polys[0] || {}).properties;
     meta.textContent = [
@@ -1616,7 +1816,7 @@
     if (!hourly || hourly.length < 3) {
       box.appendChild(el("p", "hint", job
         ? "No hindcast ensemble for this run."
-        : "Ensemble spread against hours before the radar pass."));
+        : "Hindcast uncertainty curve appears after a run."));
       return;
     }
 
@@ -1664,10 +1864,6 @@
     });
 
     box.appendChild(svg);
-    var cap = el("p", "hint",
-      "Ensemble spread in km, from the job document, against hours before the pass.");
-    cap.style.marginTop = "4px";
-    box.appendChild(cap);
   }
 
   /* ------------------------------------------- drift reconstruction list
@@ -1950,22 +2146,83 @@
       state.frameIndex = Number(e.target.value);
       renderFrame();
     });
+    $("slider").addEventListener("change", function (e) {
+      stop();
+      state.frameIndex = Number(e.target.value);
+      renderFrame();
+    });
     $("play").addEventListener("click", play);
     $("toEnd").addEventListener("click", function () {
       stop();
-      state.frameIndex = Math.max(0, state.frames.length - 1);
+      state.frameIndex = (state.satFrameIndex !== undefined && state.satFrameIndex >= 0)
+        ? state.satFrameIndex
+        : Math.max(0, state.frames.length - 1);
       $("slider").value = state.frameIndex;
       renderFrame();
     });
+    function triggerExport(format) {
+      if (!state.job || !state.job.job_id) {
+        var n = $("notices");
+        if (n) n.appendChild(el("div", "notice warn", "Run or load an analysis first to export data."));
+        return;
+      }
+      var jobId = encodeURIComponent(state.job.job_id);
+      var url = "/api/jobs/" + jobId + "/export?format=" + encodeURIComponent(format);
+      var filename = "";
+      if (format === "pdf") filename = "attribution_" + state.job.job_id + ".pdf";
+      else if (format === "html") filename = "attribution_" + state.job.job_id + ".html";
+      else if (format === "geojson") filename = "tidetrail_" + state.job.job_id + ".geojson";
+      else filename = "tidetrail_" + state.job.job_id + ".json";
+
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () {
+        if (a.parentNode) a.parentNode.removeChild(a);
+      }, 200);
+
+      var st = $("export-status");
+      if (st) {
+        var lbl = format.toUpperCase();
+        if (format === "geojson") lbl = "GeoJSON";
+        st.textContent = lbl + " exported";
+        setTimeout(function () { st.textContent = ""; }, 3000);
+      }
+    }
+
     $("ex-json").addEventListener("click", function () {
-      if (state.job) window.open("/api/jobs/" + state.job.job_id, "_blank");
+      triggerExport("json");
     });
     $("ex-geo").addEventListener("click", function () {
-      if (state.job) window.open("/api/jobs/" + state.job.job_id + "/geojson", "_blank");
+      triggerExport("geojson");
     });
     $("ex-note").addEventListener("click", function () {
-      if (state.job) window.open("/api/report/" + state.job.job_id, "_blank");
+      triggerExport("pdf");
     });
+    var exNoteHtml = $("ex-note-html");
+    if (exNoteHtml) {
+      exNoteHtml.addEventListener("click", function (e) {
+        if (!state.job || !state.job.job_id) {
+          var n = $("notices");
+          if (n) n.appendChild(el("div", "notice warn", "Run or load an analysis first to export data."));
+          return;
+        }
+        if (e.altKey) {
+          triggerExport("html");
+        } else {
+          var url = "/api/report/" + encodeURIComponent(state.job.job_id);
+          window.open(url, "_blank", "noopener,noreferrer");
+          var st = $("export-status");
+          if (st) {
+            st.textContent = "HTML opened";
+            setTimeout(function () { st.textContent = ""; }, 3000);
+          }
+        }
+      });
+    }
   }
 
   function bindKeys() {
@@ -2019,6 +2276,7 @@
       $("notices").appendChild(el("div", "notice bad", "Could not load scenes: " + e.message));
     });
     getJSON("/api/scoring").then(renderWeights).catch(function (e) { console.error(e); });
+    window.addEventListener("hashchange", openLinkedJob);
   }
 
   if (document.readyState === "loading") {

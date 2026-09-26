@@ -1,9 +1,12 @@
 """POST /api/run, POST /api/demo/inject, and the job endpoints."""
 from __future__ import annotations
 
+import json
+import math
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse, Response
 
 from .. import pipeline as core
 from ..jobs import store as job_store
@@ -67,22 +70,8 @@ def inject(req: InjectRequest) -> Dict[str, Any]:
 def jobs(limit: int = 50) -> List[JobSummary]:
     return [JobSummary(**j) for j in job_store.listing(limit=limit)]
 
-
-@router.get("/api/jobs/{job_id}")
-def job(job_id: str) -> Dict[str, Any]:
-    doc = job_store.load(job_id)
-    if doc is None:
-        raise HTTPException(404, "unknown job_id %r" % job_id)
-    return doc
-
-
-@router.get("/api/jobs/{job_id}/geojson")
-def job_geojson(job_id: str) -> Dict[str, Any]:
+def build_job_geojson(doc: Dict[str, Any]) -> Dict[str, Any]:
     """One FeatureCollection with every layer, for export into any GIS."""
-    doc = job_store.load(job_id)
-    if doc is None:
-        raise HTTPException(404, "unknown job_id %r" % job_id)
-
     features: List[Dict[str, Any]] = []
     det = doc.get("detection") or {}
     features.extend(det.get("polygons") or [])
@@ -111,14 +100,18 @@ def job_geojson(job_id: str) -> Dict[str, Any]:
     for s in (doc.get("attribution") or {}).get("suspects", []):
         for f in (s.get("track") or {}).get("geojson", {}).get("features", []):
             props = dict(f.get("properties") or {})
-            props.update({"rank": s["rank"], "score": s["score"], "type": s["type"],
-                          "reasons": ", ".join(s["reasons"])})
+            props.update({
+                "rank": s.get("rank"),
+                "score": s.get("score"),
+                "type": s.get("type"),
+                "reasons": ", ".join(s.get("reasons") or []),
+            })
             features.append({**f, "properties": props})
 
     return {
         "type": "FeatureCollection",
         "properties": {
-            "job_id": job_id,
+            "job_id": doc.get("job_id"),
             "created": doc.get("created"),
             "scene_id": (doc.get("input") or {}).get("scene_id"),
             "status": doc.get("status"),
@@ -126,3 +119,45 @@ def job_geojson(job_id: str) -> Dict[str, Any]:
         },
         "features": features,
     }
+
+def _clean_nans(obj: Any) -> Any:
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+    if isinstance(obj, dict):
+        return {k: _clean_nans(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_clean_nans(v) for v in obj]
+    return obj
+
+
+@router.get("/api/jobs/{job_id}")
+def job(job_id: str, download: bool = False) -> Any:
+    doc = job_store.load(job_id)
+    if doc is None:
+        raise HTTPException(404, "unknown job_id %r" % job_id)
+    if download:
+        return Response(
+            content=json.dumps(_clean_nans(doc), indent=2, default=str),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="tidetrace_{job_id}.json"'},
+        )
+    return doc
+
+
+@router.get("/api/jobs/{job_id}/geojson")
+def job_geojson(job_id: str, download: bool = False) -> Any:
+    """One FeatureCollection with every layer, for export into any GIS."""
+    doc = job_store.load(job_id)
+    if doc is None:
+        raise HTTPException(404, "unknown job_id %r" % job_id)
+    fc = build_job_geojson(doc)
+    if download:
+        return Response(
+            content=json.dumps(_clean_nans(fc), indent=2, default=str),
+            media_type="application/geo+json",
+            headers={"Content-Disposition": f'attachment; filename="tidetrace_{job_id}.geojson"'},
+        )
+    return fc
+

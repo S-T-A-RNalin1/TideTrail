@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TideTrace</title>
+<title>TideTrail</title>
 <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="/static/style.css?v=__V__">
 <script>
   /* Set the theme before first paint, so a reload never flashes the wrong one. */
   try {
-    var t = localStorage.getItem("tidetrace-theme");
+    var t = localStorage.getItem("tidetrail-theme") || localStorage.getItem("tidetrace-theme");
     if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
   } catch (e) { /* private mode: fall through to the dark default */ }
 </script>
@@ -19,14 +19,14 @@
 
   <!-- ============================================================ app bar -->
   <header class="appbar">
-    <a class="brand" href="/" aria-label="TideTrace home">
+    <a class="brand" href="/" aria-label="TideTrail home">
       <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
         <circle cx="16" cy="16" r="14.5" class="mk-ring"/>
         <path class="mk-wave" d="M3.5 19c3-2.6 5.5-2.6 8.5 0s5.5 2.6 8.5 0 5.5-2.6 8-.4"/>
         <path class="mk-wave" d="M4.5 24c2.7-2.3 5-2.3 7.7 0s5 2.3 7.7 0 5-2.3 7.3-.3"/>
         <path class="mk-drop" d="M16 5.5c2.9 3.6 4.4 6.2 4.4 8.1a4.4 4.4 0 0 1-8.8 0c0-1.9 1.5-4.5 4.4-8.1Z"/>
       </svg>
-      <span class="brand-text"><b>TIDETRACE</b></span>
+      <span class="brand-text"><b>TIDETRAIL</b></span>
     </a>
 
     <nav class="mainnav" role="tablist" aria-label="Workspace">
@@ -100,7 +100,6 @@
     <div class="centre-head">
       <div class="ch-title">
         <h1 id="inc-title">No run yet</h1>
-        <span class="pill" id="inc-status">Idle</span>
       </div>
       <p class="ch-meta" id="inc-meta">Pick a scene on the left and run the analysis.</p>
       <div class="ch-coords"><span id="inc-coords">-</span></div>
@@ -119,10 +118,10 @@
     </div>
 
     <div id="timebar">
-      <button id="play" class="tb-btn" aria-label="Play">▶</button>
-      <button id="toEnd" class="tb-btn wide">Radar pass</button>
-      <span class="t" id="tlabel">-</span>
-      <input type="range" id="slider" min="0" max="100" value="0" aria-label="Time">
+      <button id="play" class="tb-btn" disabled aria-label="Play">▶</button>
+      <button id="toEnd" class="tb-btn wide" disabled>Radar pass</button>
+      <span class="t" id="tlabel">Run analysis to scrub timeline</span>
+      <input type="range" id="slider" min="0" max="100" value="0" disabled aria-label="Time">
       <span class="tb-legend">
         <i class="sw hind"></i>hindcast
         <i class="sw fore"></i>forecast
@@ -142,7 +141,7 @@
 
       <section class="card">
         <h2>Hindcast uncertainty</h2>
-        <div id="spreadchart" class="card-body"><p class="hint">Ensemble spread against hours before the radar pass.</p></div>
+        <div id="spreadchart" class="card-body"><p class="hint">Hindcast uncertainty curve appears after a run.</p></div>
       </section>
     </div>
   </main>
@@ -167,7 +166,7 @@
 
       <section class="rail-block grow">
         <h2>Potential sources <span class="count" id="susp-count"></span></h2>
-        <div id="suspects"><p class="hint">Ranked likelihood for investigation. Not proof of discharge.</p></div>
+        <div id="suspects"><p class="hint">Suspect vessels ranked by spatio-temporal attribution score.</p></div>
       </section>
 
       <section class="rail-block">
@@ -199,13 +198,14 @@
         <div id="weights"><p class="hint">loading</p></div>
       </section>
       <section class="rail-block">
-        <h2>Export</h2>
+        <h2>Export <span class="count" id="export-status"></span></h2>
         <div class="btnrow">
-          <button id="ex-json" disabled>Job JSON</button>
-          <button id="ex-geo" disabled>GeoJSON</button>
-          <button id="ex-note" disabled>Attribution note</button>
+          <button id="ex-json" disabled title="Download complete job telemetry and analysis as JSON">Job JSON</button>
+          <button id="ex-geo" disabled title="Download geospatial features as GeoJSON">GeoJSON</button>
+          <button id="ex-note" disabled title="Download Court-Admissible Maritime Pollution Attribution Note (PDF)">Attribution Note (PDF)</button>
+          <button id="ex-note-html" disabled title="View or download Maritime Pollution Attribution Note (HTML)">Attribution Note (HTML)</button>
         </div>
-        <p class="hint">Every number on this screen comes from the job document.</p>
+        <p class="hint">Court-admissible dossier with SHA-256 scene hash and itemized telemetry.</p>
       </section>
     </div>
 

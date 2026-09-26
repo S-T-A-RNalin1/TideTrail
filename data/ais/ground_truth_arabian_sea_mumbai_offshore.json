@@ -1,6 +1,6 @@
 {
   "note": "Ground truth of the simulation. Never read by detection, drift or scoring.",
-  "generated": "2026-09-02T19:50:18.078237+00:00",
+  "generated": "2026-09-07T07:45:31.447857+00:00",
   "seed": 1557677970,
   "bbox": [
     71.491372,
@@ -11,8 +11,8 @@
   "t_start": "2024-03-10T19:03:42",
   "t_end": "2024-03-13T19:03:42",
   "origin_used": {
-    "lon": 71.558781,
-    "lat": 19.116391,
+    "lon": 71.55969,
+    "lat": 19.115992,
     "t": "2024-03-12T15:03:42+00:00"
   },
   "vessels": [
