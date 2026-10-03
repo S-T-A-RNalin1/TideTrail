@@ -12,15 +12,25 @@ from pathlib import Path
 # ----------------------------------------------------------------------------
 # Paths
 # ----------------------------------------------------------------------------
+def _env(name: str):
+    """An environment setting, read as TIDETRAIL_* first and TIDETRACE_* second,
+    so settings written under the project's earlier name keep working."""
+    if name.startswith("TIDETRACE_"):
+        new = os.environ.get("TIDETRAIL_" + name[len("TIDETRACE_"):])
+        if new is not None:
+            return new
+    return os.environ.get(name)
+
+
 APP_DIR = Path(__file__).resolve().parent
 ROOT_DIR = APP_DIR.parent
-DATA_DIR = Path(os.environ.get("TIDETRACE_DATA", ROOT_DIR / "data"))
+DATA_DIR = Path(_env("TIDETRACE_DATA") or ROOT_DIR / "data")
 SAR_DIR = DATA_DIR / "sar"
 AIS_DIR = DATA_DIR / "ais"
 METOCEAN_DIR = DATA_DIR / "metocean"
 JOBS_DIR = DATA_DIR / "jobs"
 CACHE_DIR = DATA_DIR / "cache"
-MODELS_DIR = Path(os.environ.get("TIDETRACE_MODELS", ROOT_DIR / "models"))
+MODELS_DIR = Path(_env("TIDETRACE_MODELS") or ROOT_DIR / "models")
 STATIC_DIR = APP_DIR / "static"
 
 AIS_SQLITE = AIS_DIR / "ais.sqlite"
@@ -33,20 +43,20 @@ for _d in (DATA_DIR, SAR_DIR, AIS_DIR, METOCEAN_DIR, JOBS_DIR, CACHE_DIR, MODELS
 
 def _f(name: str, default: float) -> float:
     try:
-        return float(os.environ[name])
-    except (KeyError, ValueError):
+        return float(_env(name))
+    except (TypeError, ValueError):
         return default
 
 
 def _i(name: str, default: int) -> int:
     try:
-        return int(os.environ[name])
-    except (KeyError, ValueError):
+        return int(_env(name))
+    except (TypeError, ValueError):
         return default
 
 
 def _b(name: str, default: bool) -> bool:
-    raw = os.environ.get(name)
+    raw = _env(name)
     if raw is None:
         return default
     return raw.strip().lower() in {"1", "true", "yes", "on"}

@@ -30,7 +30,7 @@ cloud service, no login at run time, no CUDA requirement.
 
 - [The console](#the-console)
 - [The problem statement](#the-problem-statement)
-- [How TideTrace answers it](#how-tidetrace-answers-it)
+- [How TideTrail answers it](#how-tidetrail-answers-it)
 - [Architecture](#architecture)
 - [Tech stack](#tech-stack)
 - [Quick start](#quick-start)
@@ -163,9 +163,9 @@ pipeline is asked to:
 
 ---
 
-## How TideTrace answers it
+## How TideTrail answers it
 
-| Clause | What TideTrace does | Where it lives | What you see |
+| Clause | What TideTrail does | Where it lives | What you see |
 | --- | --- | --- | --- |
 | (a) Detect oil in SAR | UNet++ over 512 px tiles of a 2048 px dual-pol chip, cosine-tapered stitching | `app/ml/infer.py` | Orange polygons on the chart |
 | (a) Reject look-alikes | Separate class, drawn and then excluded from attribution | `app/ml/fallback.py` | Yellow dashed polygons. Baseline path only, see [limitations](#limitations) |
@@ -272,8 +272,8 @@ pipeline without any of it, and reports what it lost at `/api/health`.
 ## Quick start
 
 ```bash
-git clone https://github.com/S-T-A-RNalin1/tidetrace.git
-cd tidetrace
+git clone https://github.com/S-T-A-RNalin1/TideTrail.git
+cd TideTrail
 python -m venv .venv
 ```
 
@@ -743,28 +743,28 @@ weight can be changed and the run repeated without editing code.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `TIDETRACE_ALPHA_WIND` | 0.03 | wind drift factor |
-| `TIDETRACE_DEFLECTION_DEG` | 15 | leeway deflection, right in the N hemisphere |
-| `TIDETRACE_ENSEMBLE_N` | 50 | ensemble members |
-| `TIDETRACE_DT_SECONDS` | 3600 | integration step |
-| `TIDETRACE_HINDCAST_H` | 48 | backward hours |
-| `TIDETRACE_FORECAST_H` | 36 | forward hours |
-| `TIDETRACE_SEARCH_RADIUS_KM` | 10 | AIS search radius around the origin zone |
-| `TIDETRACE_ORIGIN_WINDOW_H` | 3 | AIS time window, plus and minus |
-| `TIDETRACE_OIL_DB_THRESHOLD` | -22.0 | baseline absolute threshold |
-| `TIDETRACE_TILE` | 512 | inference tile size |
-| `TIDETRACE_W_PROX` / `_W_TIME` / `_W_BEH` / `_W_TYPE` / `_W_TRAJ` | .30 / .20 / .25 / .15 / .10 | scoring weights |
-| `TIDETRACE_RADIOMETRIC_ALIGN` | 0 | correct each scene's water level to the checkpoint reference |
-| `TIDETRACE_RADIOMETRIC_WARN_DB` | 4.0 | warn when a scene sits this far from that reference |
-| `TIDETRACE_CLEAN_WATER_SPAN_DB` | 3.0 | below this contrast span a scene is reported as clean water |
-| `TIDETRACE_BASELINE_RELATIVE_ONLY` | 1 | baseline threshold follows the water level, not the -22 dB constant |
-| `TIDETRACE_OFFLINE` | 1 | air-gapped; must be 0 before any live path can run |
-| `TIDETRACE_OPEN_METEO_LIVE` | 0 | fetch the metocean cube at run time instead of reading cache |
+| `TIDETRAIL_ALPHA_WIND` | 0.03 | wind drift factor |
+| `TIDETRAIL_DEFLECTION_DEG` | 15 | leeway deflection, right in the N hemisphere |
+| `TIDETRAIL_ENSEMBLE_N` | 50 | ensemble members |
+| `TIDETRAIL_DT_SECONDS` | 3600 | integration step |
+| `TIDETRAIL_HINDCAST_H` | 48 | backward hours |
+| `TIDETRAIL_FORECAST_H` | 36 | forward hours |
+| `TIDETRAIL_SEARCH_RADIUS_KM` | 10 | AIS search radius around the origin zone |
+| `TIDETRAIL_ORIGIN_WINDOW_H` | 3 | AIS time window, plus and minus |
+| `TIDETRAIL_OIL_DB_THRESHOLD` | -22.0 | baseline absolute threshold |
+| `TIDETRAIL_TILE` | 512 | inference tile size |
+| `TIDETRAIL_W_PROX` / `_W_TIME` / `_W_BEH` / `_W_TYPE` / `_W_TRAJ` | .30 / .20 / .25 / .15 / .10 | scoring weights |
+| `TIDETRAIL_RADIOMETRIC_ALIGN` | 0 | correct each scene's water level to the checkpoint reference |
+| `TIDETRAIL_RADIOMETRIC_WARN_DB` | 4.0 | warn when a scene sits this far from that reference |
+| `TIDETRAIL_CLEAN_WATER_SPAN_DB` | 3.0 | below this contrast span a scene is reported as clean water |
+| `TIDETRAIL_BASELINE_RELATIVE_ONLY` | 1 | baseline threshold follows the water level, not the -22 dB constant |
+| `TIDETRAIL_OFFLINE` | 1 | air-gapped; must be 0 before any live path can run |
+| `TIDETRAIL_OPEN_METEO_LIVE` | 0 | fetch the metocean cube at run time instead of reading cache |
 | `AISSTREAM_API_KEY` | unset | key for `scripts/record_ais.py`; never written to disk |
-| `TIDETRACE_KEEP_JOBS` | 200 | run documents retained; 0 keeps everything |
-| `TIDETRACE_KEEP_JOB_OVERLAYS` | 20 | runs whose overlay PNGs are retained |
-| `TIDETRACE_SEED` | 20260920 | determinism |
-| `TIDETRACE_ALLOW_SELFTEST_SCENES` | 0 | show synthetic test scenes; keep this off |
+| `TIDETRAIL_KEEP_JOBS` | 200 | run documents retained; 0 keeps everything |
+| `TIDETRAIL_KEEP_JOB_OVERLAYS` | 20 | runs whose overlay PNGs are retained |
+| `TIDETRAIL_SEED` | 20260920 | determinism |
+| `TIDETRAIL_ALLOW_SELFTEST_SCENES` | 0 | show synthetic test scenes; keep this off |
 
 ### Live feeds
 
@@ -791,8 +791,8 @@ export AISSTREAM_API_KEY=...
 python scripts/record_ais.py --all --minutes 30
 ```
 
-**Metocean is genuinely live when you ask for it.** `TIDETRACE_OPEN_METEO_LIVE=1`
-with `TIDETRACE_OFFLINE=0` makes every run fetch the cube for its own footprint
+**Metocean is genuinely live when you ask for it.** `TIDETRAIL_OPEN_METEO_LIVE=1`
+with `TIDETRAIL_OFFLINE=0` makes every run fetch the cube for its own footprint
 and hour, refresh the cache on the way past, and label the field `live: true` in
 the job document. Both switches have to agree; neither alone opens a socket, and
 `tests/test_conformance_fixes.py` pins all four combinations. A live fetch that
