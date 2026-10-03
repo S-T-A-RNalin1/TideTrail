@@ -68,6 +68,7 @@ MAX_VESSELS = 40
 # and in those runs naming the best fit was wrong about as often as right.
 SHORTLIST = 3
 MIN_FIT = 0.05
+INSTALLATION_NEAR = 0.75
 DT_SECONDS = 1800
 INSTALLATION_RADIUS_KM = 25.0
 SAME_SITE_M = 200.0
@@ -310,7 +311,13 @@ def assess(rings: Sequence[Sequence[Tuple[float, float]]], t_sat: datetime, fiel
     results.sort(key=lambda r: -r["fit"])
     vessels = [r for r in results if r["kind"] == "vessel"]
     shortlist = [r for r in vessels if r["fit"] >= MIN_FIT][:SHORTLIST]
-    inst_fit = [r for r in results if r["kind"] == "installation" and r["fit"] >= EXPLAINS_AT]
+    # A fixed source is reported beside the ships whenever it fits nearly as
+    # well as the best of them: off Santa Barbara the documented seeps and
+    # Platform Holly sit just behind the best vessel, and leaving them out
+    # would hide the likeliest answer.
+    best_fit = results[0]["fit"] if results else 0.0
+    inst_fit = [r for r in results if r["kind"] == "installation"
+                and r["fit"] >= max(MIN_FIT, INSTALLATION_NEAR * best_fit)]
     if not results:
         verdict, headline = "untested", "No installation or vessel close enough to test"
     elif shortlist:

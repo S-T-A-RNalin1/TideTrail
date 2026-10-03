@@ -1,196 +1,142 @@
-# 🏆 TideTrace: 10-Minute National Pitch Deck & Live Prototype Script
-**Smart India Hackathon 2026 · Problem Statement 26143 · NTRO**
-**Theme:** Disaster Management / Space Technology | **Category:** Software
-**Presentation Time:** 10 Minutes Total (7.5 min pitch + 2.5 min live prototype walkthrough) + 5 min Judge Q&A
+# TideTrail: 10-Minute Pitch and Live Demo Script
+
+**Problem statement:** Leveraging satellite imagery to determine oil spills at sea along with AIS data correlations to identify the vessel responsible for the spill. **Organisation:** NTRO. **Category:** Software.
+
+**Format:** about 6.5 minutes of slides, 2.5 minutes of live console, 1 minute to close, then judge questions.
+
+Every number below is one the prototype shows on screen or writes to disk. If a judge asks where a number comes from, the answer is the file named next to it.
 
 ---
 
-## ⏱️ Master Pitch Timeline & Pacing Guide
+## Timeline
 
-| Time Stamp | Slide / Section | Focus & Key Deliverable | Primary Speaker Cue |
-| :--- | :--- | :--- | :--- |
-| **0:00 – 1:15** (75s) | **Slide 1: Title & Mandate** | The Un-attributable Spill Problem, NTRO Mandate & TideTrace Vision | *"Over 80% of marine oil spills remain unpunished..."* |
-| **1:15 – 3:00** (105s) | **Slide 2: Proposed Solution** | 3-Clause Solution Flow, Innovation Matrix & Safety Gates | *"TideTrace closes the evidentiary loop with 3 coupled engines..."* |
-| **3:00 – 4:45** (105s) | **Slide 3: Technical Approach** | 12-Stage Architecture, UNet++ (0.8891 IoU), RK2 Physics & Geodesy | *"Here is what happens under the hood when an image is ingested..."* |
-| **4:45 – 7:15** (150s) | **LIVE PROTOTYPE DEMO** | Live Console Walkthrough: Detection → Drift → Dark Vessel Caught! | *"Let us now switch to the live running prototype on this machine..."* |
-| **7:15 – 8:30** (75s) | **Slide 4: Feasibility & Risks** | Sub-10s Runtime, Zero Vendor Lock-in & 4 Real-World Mitigations | *"How do we guarantee this works in real, chaotic maritime environments?"* |
-| **8:30 – 9:30** (60s) | **Slide 5: Impact & Benefits** | NTRO, Coast Guard, DG Shipping & Coastal Livelihood Protection | *"TideTrace delivers strategic, financial, and ecological ROI..."* |
-| **9:30 – 10:00** (30s) | **Slide 6: Research & Conclusion** | Zenodo Benchmarks, Peer-Reviewed Physics & Final Call to Action | *"Grounded in physical oceanography and validated on real seas..."* |
-
----
-
-## 🎤 Word-for-Word Presenter Script
-
-### **[0:00 – 1:15] Slide 1: Title Page & The National Problem**
-*(Slide 1 displayed on screen)*
-
-> **Speaker:**
-> "Respected judges and technical evaluators from the National Technical Research Organisation.
->
-> Every year, millions of barrels of toxic petroleum and oily bilge waste are illegally dumped into our oceans and along India's 7,500-kilometer coastline. Yet today, **over 80% of marine oil spills remain completely un-attributable**.
->
-> Why? Because by the time an optical satellite spots a slick, clouds or night have obscured it, ocean currents have drifted it tens of kilometers from the dump site, and the offending ship has steamed away—often having deliberately turned off its AIS transponder.
->
-> Under Problem Statement **26143**, NTRO asked for an automated pipeline to detect oil spills from satellite imagery, trace the slick backwards to its origin and forward to forecast its threat, and correlate maritime AIS traffic to identify and rank the culprit vessel.
->
-> We have built **TideTrace**: an end-to-end, automated satellite SAR oil spill detection, Lagrangian drift hindcasting, and forensic AIS vessel attribution console.
->
-> TideTrace completely answers all three mandated clauses:
-> - **Clause (a)**: Deep learning segmentation of Sentinel-1 C-band SAR dual-pol imagery with **0.8891 IoU** on the Zenodo benchmark, extracting true geodetic area, perimeter, and PCA advection orientation.
-> - **Clause (b)**: 2nd-order Runge-Kutta numerical advection through real ERA5 wind and Copernicus hydrodynamic currents, tracking a 50-particle Monte Carlo ensemble back to the exact release envelope and forward 36 hours for coastal threat alerts.
-> - **Clause (c)**: Spatio-temporal AIS correlation with dead-reckoning gap forensics to catch 'dark vessels' and generate a court-admissible forensic dossier.
->
-> Best of all: it runs end-to-end in **under 10 seconds** on GPU and 30-45 seconds on a laptop CPU, validated across 126 automated test suites."
+| Time | Slide / section | What the judges should take away |
+| --- | --- | --- |
+| 0:00 to 1:00 | Slide 1, title | The problem: a slick is seen hours after the ship has gone, and often nobody is held responsible |
+| 1:00 to 2:45 | Slide 2, solution | Three clauses answered, and the one number that proves attribution works |
+| 2:45 to 4:15 | Slide 3, technical approach | The pipeline, the model accuracy, the physics |
+| 4:15 to 6:45 | Live console | A real Sentinel-1 pass, real AIS, a 3-ship shortlist |
+| 6:45 to 8:00 | Slide 4, feasibility and risks | Runs offline on a laptop; what we do about look-alikes, dark ships, drift error |
+| 8:00 to 9:00 | Slide 5, impact | Who uses it and for what |
+| 9:00 to 10:00 | Slide 6, references and close | Built on published methods and open data |
 
 ---
 
-### **[1:15 – 3:00] Slide 2: Proposed Solution & Novel Innovations**
-*(Advance to Slide 2)*
+## Script
 
-> **Speaker:**
-> "Let us look at how TideTrace directly addresses the operational bottlenecks of maritime pollution enforcement.
+### 0:00 to 1:00 · Slide 1
+
+> "Respected members of the jury.
 >
-> On the left, you see the three stages of our operational flow:
-> 1. **Spaceborne Radar Ingestion**: We rely primarily on active microwave Synthetic Aperture Radar (SAR) from Sentinel-1. Unlike optical imagery, SAR sends its own C-band pulse through rain, monsoons, and total darkness, sensing how oil dampens capillary-gravity Bragg waves.
-> 2. **Physical Drift Inversion**: Rather than guessing the spill source, our Lagrangian engine numerically back-steps the slick particle-by-particle through historical oceanographic current and 10-meter wind fields.
-> 3. **Maritime AIS Trajectory Reconstruction**: We project vessels into a spherical great-circle trajectory space, filter candidates within our spatial-temporal funnel, and score every ship against multi-factor behavioral criteria.
+> A slick on a radar image is seen hours after it was released. By then the wind and the current have moved it kilometres from where it went into the water, and the ship that released it has sailed on, sometimes with its AIS transponder switched off. Matching the slick to the ship by hand means days of work, and often it is never done.
 >
-> Now, look at the four core innovations on the right that separate TideTrace from generic AI prototypes:
+> Problem statement 26143 asks for an automated pipeline that detects the slick, traces it back to where and when it was released, forecasts where it goes next, and ranks the vessels that could be responsible.
 >
-> First, **Look-Alike & Biogenic Discrimination**. One of the biggest pitfalls in radar remote sensing is false alarms caused by natural algal blooms, fish oil, and low-wind calm patches. Our network is trained for multi-class classification: look-alikes are drawn in dashed yellow contours, quarantined, and excluded from vessel attribution.
+> TideTrail does all four, offline, on a laptop."
+
+### 1:00 to 2:45 · Slide 2
+
+> "On the left, how it answers the problem statement.
 >
-> Second, our **Radiometric Clean Water Safety Floor**. If a scene has a dynamic co-pol contrast span below 3.0 dB, it is physically uniform, wind-roughened open water. Our engine immediately reports 'No slick. Uniform water.' with zero false positives.
+> It links the slick the radar sees to every vessel and installation that could have released it, and tests each one against the drift physics. It flags AIS silences of 30 minutes or more near the release zone, and it finds ships on the radar image itself that broadcast no AIS at all.
 >
-> Third, **Dark Vessel Blackout Forensics**. When a captain dumps bilge water illegally, standard operating procedure is to turn off the AIS transponder. TideTrace detects transmission gaps greater than 30 minutes that cross within 5 kilometers of the estimated origin point, awarding a 0.95 behavioral anomaly penalty.
+> And it is measured, not claimed. We took real ships from real recorded AIS, released oil along their real tracks through the real currents, and asked TideTrail to find them blind, among a median of 20 real vessels. In 48 such runs the ship that released the oil was on our three-ship shortlist 37 times. Picking three at random would manage about 7.
 >
-> Finally, our **Court-Admissible Attribution Dossier**. We auto-export a tamper-evident Maritime Pollution Attribution Note in PDF and HTML, sealed with a SHA-256 cryptographic scene hash, providing naval admiralty courts with untampered proof."
+> On the right, what is new. The forward source test: instead of only asking which ship was near the estimated origin, we release oil from every candidate ship along its own track, and from every nearby platform, drift it to the radar time, and see which one reproduces the slick. That moved the true ship to first place in 23 of the 48 runs, against 14 for proximity scoring alone.
+>
+> A clean-water floor: a scene with under 3 dB of structure is reported as clean water rather than forced to contain a slick. And a radar against AIS cross-check of every ship echo in the image."
+
+### 2:45 to 4:15 · Slide 3
+
+> "Left to right.
+>
+> Inputs: Sentinel-1 or any RISAT-class SAR GeoTIFF, optical imagery, AIS in the MarineCadastre format the problem statement points to, ERA5 wind and 1/12 degree surface currents, and a coastline.
+>
+> Detect: a UNet++ with an EfficientNet-B0 encoder, trained on the Zenodo Sentinel-1 oil spill dataset. Intersection over union for oil is 0.89 on the held-out tiles. It masks land and the image edge, then measures area, length, width and orientation.
+>
+> Trace: 50 particles seeded inside the slick, integrated with a second-order Runge-Kutta step through the wind and currents, backwards to a release zone and time window, and forwards 36 hours. Oil that reaches the coast stops there, so the forecast reports how much beaches and when.
+>
+> Attribute: AIS is filtered to the release zone and to wherever the drifting oil was, berthed boats are dropped, and each vessel is scored on proximity, timing, trajectory, behaviour and type.
+>
+> Verify: the forward source test ranks them into the shortlist. Output: the console, a PDF and HTML note with SHA-256 digests, GeoJSON, and a REST API."
+
+### 4:15 to 6:45 · Live console
+
+Before the session: server running, Gulf of Mexico scene selected, browser at full screen.
+
+> "This is the console running on this laptop, with no network.
+>
+> This is a real Sentinel-1 pass over the MC20 site in the Gulf of Mexico, 24 September 2023, with the real recorded AIS for that day."
+
+*Click Run analysis. It takes about a minute; narrate the progress steps as they appear.*
+
+> "Detection outlines 28 slicks, about 5 square kilometres. The drift runs back to a release zone around 15:00 UTC the previous afternoon, which you see as the ochre zone.
+>
+> Of 108 vessels in the area, 16 were near that zone or along the drifting oil. Each was tested by releasing oil along its own track. The finding names three, BOSSMAN, PATRICIA DE-ANNE and RAPID RUNNER II, as the ships whose oil best reproduces the slick, and says plainly that this is a shortlist to inspect, not a verdict."
+
+*Drag the time slider back, then forward past the radar pass.*
+
+> "The slider replays the vessels and the oil hour by hour, back to the release window and forward 36 hours."
+
+*Open the Vessels view.*
+
+> "Every vessel carries its reasons: how close, when, its course against the slick, any AIS silence. Above them, every bright ship echo on the radar is checked against AIS at the moment of the pass."
+
+*Select Santa Barbara, and open its saved run from the history if time is short.*
+
+> "Off Santa Barbara the slick is in the channel where the seeps are. The system lists one vessel and, beside it, the two documented fixed sources, Platform Holly and the Coal Oil Point seep field, which fit almost as well. It does not hand the blame to the nearest ship."
+
+*Select Kochi.*
+
+> "And this is the pass three days after the MSC ELSA 3 sank off Kochi. Monsoon sea, 2.4 dB of structure: the system reports clean water instead of inventing a slick."
+
+*Method view, then Export the PDF note.*
+
+> "The Method view shows these validation numbers, the scoring rules and the timings. The note exports as PDF or HTML with digests to check later copies against."
+
+### 6:45 to 8:00 · Slide 4
+
+> "Feasibility. About a minute per scene on a laptop CPU, with no GPU and no network. The data is open: Sentinel-1, Sentinel-2, ERA5, Copernicus currents, and AIS either from MarineCadastre or from NTRO's own feed loaded as CSV. Analysts can upload their own radar pass, AIS file and optical image from the console.
+>
+> Three risks. Look-alikes, calm water and natural films that also look dark: the model was trained with look-alike chips as negatives, and the clean-water floor and land and edge masks catch the rest. Ships that switch AIS off: the AIS gap check, plus radar echoes with no AIS. Drift uncertainty: an ensemble rather than a single line, and a shortlist rather than a single name."
+
+### 8:00 to 9:00 · Slide 5
+
+> "NTRO gets satellite-to-AIS screening for the EEZ. The Coast Guard gets a release zone and a forecast that narrow where to look and where oil will land. DG Shipping and the ports get a documented note to support an inspection. NDMA gets the landfall forecast to stage booms before oil reaches the coast."
+
+### 9:00 to 10:00 · Slide 6 and close
+
+> "The methods are published ones: Alpers on radar oil detection, UNet++ for segmentation, NOAA GNOME and OpenDrift for drift, the Zenodo benchmark for training.
+>
+> To close. TideTrail detects the slick, traces it, forecasts it, and narrows a sea of ships to three to inspect, and it says how often that shortlist has been right. Thank you."
 
 ---
 
-### **[3:00 – 4:45] Slide 3: Technical Approach & Architecture**
-*(Advance to Slide 3)*
+## Likely questions
 
-> **Speaker:**
-> "Let us examine our engineering architecture shown in the flowchart across Slide 3.
->
-> When a raw 2048x2048 dual-pol GeoTIFF arrives, it moves through 12 deterministic, traceable stages:
-> - In **Phase A**, the SAR chip is tiled into overlapping 512x512 windows. Our **UNet++** model with a **timm-efficientnet-b0** encoder performs inference. We blend softmax planes using a cosine taper to eliminate edge seam artifacts. Next, our geodesy module projects coordinates into a **Local Azimuthal Equidistant (AEQD)** frame centered on the slick, computing distortion-free metric surface area, perimeter, and PCA eigen-orientation.
-> - In **Phase B**, we load cached hourly ERA5 10m wind vectors and Copernicus Marine 1/12° hydrodynamic currents (`GLOBAL_ANALYSISFORECAST_PHY_001_024`). We seed 50 particles inside the slick polygon and integrate backwards using an **RK2 midpoint scheme** governed by:
->   $$\vec{V}_{\text{slick}} = \vec{U}_{\text{current}} + 0.03 \cdot \mathbf{R}(15^\circ) \cdot \vec{U}_{\text{wind10}}$$
->   accounting for the 3% leeway factor and the +15° Ekman Coriolis deflection to the right in the Northern Hemisphere. We walk backward until the 90% particle spread reaches our 8 km threshold, defining the exact origin point and time window. Simultaneously, we project 36 hours forward, checking the expanding dispersion cone against Natural Earth 1:10m land polygons for coastal impact alerts.
-> - In **Phase C**, we query our indexed SQLite AIS database. We filter ships whose trajectory passes within $R_{\text{search}} = R_{\text{zone}} + 10\text{ km}$ during $[T_{\text{orig}} \pm 3\text{h}]$. Every candidate is scored using our explainable weighted formula:
->   $$S = 0.30 \cdot S_{\text{prox}} + 0.20 \cdot S_{\text{time}} + 0.25 \cdot S_{\text{beh}} + 0.15 \cdot S_{\text{type}} + 0.10 \cdot S_{\text{traj}}$$
->   multiplied by a track confidence factor that penalizes unobserved dead-reckoning.
->
-> On the bottom left is our modern stack: PyTorch, rasterio, pyproj, FastAPI, and vanilla Leaflet. And on the bottom right is our live console—which I will now demonstrate live on this machine."
+**How accurate is the detector?**
+Oil IoU 0.889 on the Zenodo validation tiles; 1.1 percent of clean-sea pixels are misread as oil. File: `models/oil_unet_best.report.json`.
 
----
+**How do you know the attribution works?**
+Known-answer runs on real data: a real ship's real track, real currents, the unchanged pipeline searching blind among real traffic. 48 held-out runs: the true ship first in 23, on the three-ship shortlist in 37, in the top ten in 47. The seeds used to design the ranking were not used to score it. Reproduce with `python scripts/validate_attribution.py --cases 48`.
 
-### **[4:45 – 7:15] LIVE PROTOTYPE DEMONSTRATION (2.5 Minutes)**
-*(Switch screen to live browser at `http://127.0.0.1:8000/#job=job_20260907T075619_d089e8&view=investigate`)*
+**Why a shortlist and not the culprit?**
+With twenty ships in the water, an innocent ship's track often runs along the same drift line. In our runs, naming the single best fit was wrong about as often as right. Naming three and saying how often the guilty one is among them is the honest answer, and it is what an inspection needs.
 
-> **Speaker:**
-> *"Judges, we are now looking at the live TideTrace console running locally right here on this laptop. Notice the crisp three-rail interface designed for naval watchstanders: scene selection on the left, interactive geospatial Leaflet chart in the center, and forensic intelligence telemetry on the right.*
->
-> *(Point cursor to Left Rail & Center Chart)*
-> *Here we have loaded the Sentinel-1 radar pass over the Gulf of Mexico MC20 site. When we trigger 'Run Analysis', the entire 12-stage pipeline executes in just 5.4 seconds.*
->
-> *(Point to Investigate Tab & Center Slick)*
-> *In the center chart, our UNet++ model has segmented the petroleum damping into 57 sharp polygons shown in bright orange. In the telemetry panel on the right, you can see the precise morphological telemetry: a total slick area of **15.6 square kilometers**, a maximum Feret length of **10.68 kilometers**, and a PCA orientation of **104.6 degrees**, matching the local sea surface drift.*
->
-> *(Click on 'Drift' View in Header)*
-> *Now, let us switch to the Drift View. Watch the blue path rewinding across the chart. TideTrace seeded 50 particles inside the slick contour and ran the RK2 Lagrangian physics backward through real ERA5 wind and marine currents. It walked back 11 hours to **September 23 at 13:02 UTC**, converging on an origin release envelope with an 8.1 km spread radius.*
-> *Simultaneously, look at the purple forward dispersion cone projecting 36 hours ahead. It scans the shoreline and confirms zero immediate land impact for this offshore zone.*
->
-> *(Click on 'Vessels' View in Header)*
-> *Now, the definitive forensic proof: the Vessels Leaderboard. When we hand off the origin envelope to our AIS engine, it reconstructs all passing traffic.*
-> *Look at Rank #1:*
-> - *Vessel MMSI: **311211224***
-> - *Total Score: **63.1%***
-> - *Look at the reason codes attached: It was within **8.15 km** of the origin point, passed **20 minutes** prior to the release timestamp, is classified as a **Crude Oil Tanker** (type prior 1.0), was steaming at **12.6 knots**—which sits directly inside the operational bilge discharge speed band (8–16 knots)—and made a sharp **155-degree course alteration**.*
-> - *Most damning of all: look at the blackout flag: **AIS gap of 46 minutes directly over the origin coordinate**! The vessel went dark, dumped its oily bilge, and came back online after steaming away.*
->
-> *(Point to Arabian Sea Scene)*
-> *To prove this is a reliable physical instrument and not a model that hallucinates oil everywhere, let us select our Arabian Sea Mumbai Offshore test chip. In 2 seconds, TideTrace measures a dynamic contrast span of only 1.56 dB, well below our 3.0 dB floor. It reports: 'No slick. Uniform water.' Zero false slicks, and an empty suspect leaderboard.*
->
-> *(Click 'Attribution Note' Button)*
-> *Finally, with one click on 'Export Report', TideTrace generates this complete, court-admissible Maritime Pollution Attribution Note with SHA-256 cryptographic hashes and full telemetry, ready for the Indian Coast Guard to issue a notice of detention."*
+**How do you separate oil from look-alikes such as algae or low-wind patches?**
+The model is a binary oil segmenter trained with look-alike chips as negatives, which is why only 1.1 percent of clean sea is misread. A scene with under 3 dB of structure is reported as clean water, land and the image edge are masked, and the optical chip, when there is one, is used as a cross-check. A biogenic film can still be mistaken for oil, which is why the output is a lead for an analyst, not a finding.
 
----
+**What about ships that switch off AIS?**
+An AIS silence of 30 minutes or more whose dead-reckoned path passes the release zone scores 0.95 on behaviour. Independently, every bright ship echo on the radar is compared with AIS at the moment of the pass; an echo with no AIS is listed as a vessel with its transponder off or an unmapped structure.
 
-### **[7:15 – 8:30] Slide 4: Feasibility & Operational Risk Mitigation**
-*(Switch back to Slide 4)*
+**Why are some scenes' AIS simulated?**
+Public AIS exists for US waters (MarineCadastre); Indian AIS is not public. The two US scenes use real recorded AIS. Two other scenes use a simulator over the real geography and time, labelled as simulated everywhere it appears, as the problem statement allows. NTRO's own AIS loads through the AIS file upload.
 
-> **Speaker:**
-> "Now let us address feasibility, computational scaling, and operational risks.
->
-> As you saw in our live demo, TideTrace is computationally feasible: running full tiled inference, 50-particle backward-forward advection, and AIS geodesic interpolation in under 10 seconds. It requires no exotic compute infrastructure, running easily on standard patrol vessel workstations.
->
-> Furthermore, we have solved the four hardest technical risks in satellite maritime attribution:
-> 1. **Look-Alike False Alarms**: Solved via multi-class segmentation and our 3.0 dB radiometric floor, eliminating false accusations against innocent vessels near natural seeps or algae.
-> 2. **AIS Transponder Evasion**: Solved via Dead-Reckoning Gap Analysis. When a ship turns off its AIS, its dead-reckoned trajectory is evaluated against the origin zone, scoring deliberate gaps with high behavioral suspicion while confidence-clamping against sparse coastal antenna coverage.
-> 3. **Chaotic Ocean Eddy Divergence**: Solved through our 50-particle Monte Carlo ensemble with stochastic wind and current perturbation, defining an honest probabilistic release envelope rather than a fragile single-point trajectory.
-> 4. **Optical Blindness**: Solved by making C-band active SAR our primary operational sensor, guaranteeing 24/7 day-and-night surveillance through thick cloud cover, rain, and monsoons."
+**Does it work with RISAT?**
+It takes any georeferenced Sigma0 GeoTIFF at 5 to 50 m. RISAT-1A and EOS-04 are C-band like Sentinel-1, so the model should transfer, but it has not been validated on RISAT imagery yet.
 
----
+**Is it court-ready?**
+No, and we do not claim that. The note is tamper-evident (SHA-256 digests of the radar scene and of the run record) and states its method and limits. It supports an investigation; it is not proof.
 
-### **[8:30 – 9:30] Slide 5: Strategic Impact & Multi-Stakeholder Benefits**
-*(Advance to Slide 5)*
-
-> **Speaker:**
-> "The strategic value of TideTrace spans defence intelligence, maritime regulation, environmental protection, and coastal economics:
->
-> - **For NTRO**: It establishes automated, continuous satellite space reconnaissance across the entire Indian Exclusive Economic Zone (EEZ), transforming raw radar acquisitions into actionable intelligence without manual operator fatigue.
-> - **For the Indian Coast Guard (ICG)**: Instead of dispatching Dornier aircraft and offshore patrol vessels on days-long blind search patterns across thousands of square kilometers, TideTrace provides immediate, high-confidence intercept vectors within minutes. This reduces search-and-rescue and interception fuel costs by over **80%**.
-> - **For DG Shipping & the Ministry of Ports, Shipping and Waterways**: It provides unambiguous forensic evidence to enforce MARPOL Annex I regulations, issue multi-crore punitive clean-up fines, and detain guilty vessels at their next port of call under the 'Polluter Pays' doctrine.
-> - **For Coastal Communities & INCOIS**: 36-hour forward threat forecasting provides early warning to protect sensitive mangrove forests like the Sundarbans and Gulf of Kutch, coral reefs, coastal fishing grounds, and seawater desalination plant intakes before toxic oil washes ashore."
-
----
-
-### **[9:30 – 10:00] Slide 6: Research Foundations & Winning Conclusion**
-*(Advance to Slide 6)*
-
-> **Speaker:**
-> "In conclusion, TideTrace is not a theoretical concept—it is a scientifically validated, fully functional system.
->
-> Our deep learning detector was trained on 1,164 tiles from the official Zenodo Sentinel-1 SAR benchmark across Parts I, II, and III, achieving an outstanding **0.8891 IoU on oil** and **98.44% pixel accuracy** while keeping water false-oil below 1.06%.
->
-> Our advection physics adhere to the NOAA GNOME framework, and our geodesic AIS interpolation builds on published maritime trajectory literature. We have validated the system across the Gulf of Mexico, Santa Barbara Channel seeps, the Caspian Sea, and Mumbai offshore approaches.
->
-> Marine oil polluters have relied on ocean currents and darkness to erase their tracks for decades. **TideTrace uses space technology, physical oceanography, and data science to hold them accountable.**
->
-> Thank you, and we look forward to your questions."
-
----
-
-## 🛡️ Judge Q&A Defense Sheet (Tough Questions & High-Impact Answers)
-
-### **Q1: How do you differentiate between natural look-alikes (algae, biogenic slicks, wind shadows) and real mineral oil spills?**
-> **Answer:**
-> "That is the central remote sensing challenge in SAR. We tackle it in two ways:
-> First, our UNet++ model is trained with a 3-class target: sea (Class 0), look-alike (Class 1), and mineral oil (Class 2). Biogenic films have lower damping ratios and feather-like diffuse boundaries, whereas mineral petroleum exhibits sharp edge damping and elongated filament morphology.
-> Second, we implement an anti-hallucination radiometric check: if the scene contrast span is below 3.0 dB, it is classified as uniform clean water. Look-alike polygons that are detected are drawn with dashed yellow contours and are quarantined—they are strictly prevented from triggering drift advection or blaming innocent passing vessels."
-
-### **Q2: What happens if the offending vessel turned off its AIS transponder completely ('dark vessel')?**
-> **Answer:**
-> "This is a primary evasion tactic that TideTrace specifically anticipates. When a vessel turns off its transponder, there is a gap between its last received ping and its next ping hours later.
-> TideTrace's trajectory interpolation detects transmission gaps $\ge 30\text{ minutes}$. It computes the great-circle dead-reckoned track between the gap endpoints. If that dead-reckoned segment intersects within 5 km of our estimated origin envelope, the vessel receives our highest behavioral anomaly score of **0.95**.
-> Furthermore, to prevent 'ghost ships' (vessels with only 2 pings and 99% dead reckoning) from falsely dominating the leaderboard, we apply a Track Confidence Multiplier:
-> $$\text{Conf} = \text{clamp}(1 - 0.65 \cdot \text{DR\_frac}, 0.35, 1.0)$$
-> This balances evasion detection with observational confidence."
-
-### **Q3: Ocean currents and winds are chaotic. How can you be confident in backward drift over 24 to 48 hours?**
-> **Answer:**
-> "We do not rely on a single deterministic trajectory, which would be physically unsound in turbulent seas.
-> Instead, TideTrace runs a **50-particle Monte Carlo ensemble** seeded uniformly across the slick's polygon. Each particle experiences stochastic velocity perturbations ($\pm 0.1\text{ m/s}$ current noise, $\pm 1.0\text{ m/s}$ wind noise) integrated via a 2nd-order Runge-Kutta scheme using hourly ERA5 reanalysis winds and Copernicus Marine 1/12° hydrodynamic currents.
-> Crucially, we use a **frozen origin criterion**: we step backward until the 90th percentile ensemble spread radius reaches 8 km. At that point, physical advection uncertainty triggers our query to the AIS maritime traffic database, creating a bounded spatial-temporal search funnel rather than an unconstrained guess."
-
-### **Q4: Why Sentinel-1 SAR instead of high-resolution optical satellites like Sentinel-2, PlanetScope, or WorldView?**
-> **Answer:**
-> "Optical sensors operate only in daylight and are rendered completely useless by cloud cover, fog, and tropical monsoons—which is precisely when illegal bilge dumping occurs.
-> Sentinel-1 carries an active C-band Synthetic Aperture Radar (5.405 GHz). It transmits microwave pulses through clouds, rain, and total darkness 24/7. SAR detects the physical damping of surface capillary waves caused by oil films. However, TideTrace also includes opportunistic Sentinel-2 corroboration: whenever a cloud-free optical chip is available for the same footprint, it corroborates the SAR detection in the evidence rail."
-
-### **Q5: Can this system be deployed on Indian Coast Guard vessels or naval command centers with limited connectivity?**
-> **Answer:**
-> "Yes, absolutely. TideTrace was engineered with a strict clean separation between data preparation and runtime execution.
-> The entire inference engine, physical advection integrator, SQLite AIS store, and Leaflet console execute 100% locally with zero external API calls or cloud dependencies at runtime. A full pipeline run takes under 10 seconds on GPU and 35 seconds on a standard dual-core laptop CPU. It can be deployed directly on Indian Coast Guard Offshore Patrol Vessels (OPVs) or Maritime Rescue Coordination Centres without requiring persistent internet."
+**What would deployment need?**
+Access control in front of the server, a live AIS feed in place of CSV files, scheduled wind and current downloads, and validation on RISAT. The pipeline itself needs no change.

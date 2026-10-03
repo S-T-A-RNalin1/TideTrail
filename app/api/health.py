@@ -87,6 +87,28 @@ def get_config() -> Dict[str, Any]:
     }
 
 
+@router.get("/api/validation")
+def validation() -> Dict[str, Any]:
+    """What the system has been measured to do, from the files that record it."""
+    import json
+    from pathlib import Path
+
+    from ..drift import source as source_mod
+
+    detector = None
+    for p in sorted(Path(config.MODELS_DIR).glob("*.report.json")):
+        try:
+            best = json.loads(p.read_text(encoding="utf-8")).get("best") or {}
+        except (OSError, ValueError):
+            continue
+        detector = {"checkpoint": p.name.replace(".report.json", ""),
+                    "iou_oil": best.get("iou_oil"), "pixel_accuracy": best.get("pixel_accuracy"),
+                    "sea_misread_as_oil": best.get("sea_false_oil"),
+                    "data": "Zenodo Sentinel-1 oil spill validation tiles"}
+        break
+    return {"detector": detector, "attribution": source_mod.load_validation()}
+
+
 @router.get("/api/metocean")
 def metocean() -> Dict[str, Any]:
     return {"cached": fields_mod.list_cached()}

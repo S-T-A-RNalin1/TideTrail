@@ -1046,7 +1046,10 @@
           val.shortlist3 + ".";
       }
       if ((st.installations_fitting || []).length) {
-        s += " " + esc(st.installations_fitting[0].name) + " fits as well, as a fixed source.";
+        var fx = st.installations_fitting.slice(0, 2);
+        s += " Fixed sources fit nearly as well: " + fx.map(function (r) {
+          return "<span class=\"hot\">" + esc(r.name) + "</span> (" + fmt(r.fit, 2) + ")";
+        }).join(" and ") + ".";
       }
       return s;
     }
@@ -1637,6 +1640,28 @@
 
   /* Weights as a short list; the exact rules the server publishes fold away
      under one heading, so the view reads first and audits second. */
+  /* What the system has been measured to do. Numbers come from the files the
+     training and the known-answer runs wrote, never from this page. */
+  function renderValidation(v) {
+    var box = $("validation");
+    if (!box) return;
+    box.innerHTML = "";
+    var d = v.detector, a = v.attribution;
+    if (d) {
+      factRow(box, "Oil outline, IoU", fmt(d.iou_oil, 3));
+      factRow(box, "Clean sea read as oil", fmt((d.sea_misread_as_oil || 0) * 100, 1) + "% of pixels");
+    }
+    if (a && a.cases) {
+      factRow(box, "Release ship ranked first", a.top1 + " of " + a.cases);
+      factRow(box, "Release ship on shortlist", a.shortlist3 + " of " + a.cases);
+      factRow(box, "Score alone, on shortlist", a.score_only_top3 + " of " + a.cases);
+    }
+    box.appendChild(el("p", "hint", (d ? "Detector: " + d.data + ". " : "") + (a && a.cases
+      ? "Attribution: oil released along a real ship's real track and drifted through the real currents, then " +
+        "found blind among a median of " + a.median_vessels_kept + " real vessels (scripts/validate_attribution.py)."
+      : "Run scripts/validate_attribution.py to measure attribution against known answers.")));
+  }
+
   function renderWeights(scoring) {
     var box = $("weights");
     box.innerHTML = "";
@@ -2620,6 +2645,7 @@
     });
     getJSON("/api/scoring").then(renderWeights).catch(function (e) { console.error(e); });
     getJSON("/api/config").then(fillSettings).catch(function (e) { console.error(e); });
+    getJSON("/api/validation").then(renderValidation).catch(function (e) { console.error(e); });
     window.addEventListener("hashchange", openLinkedJob);
   }
 
