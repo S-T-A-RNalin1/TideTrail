@@ -52,3 +52,7 @@ models/quarantine/*.pt
 p2.docx
 .claude/
 .ruff_cache/
+data/jobs/*.part
+
+# operator uploads: radar, optical and their index
+data/uploads/

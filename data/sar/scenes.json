@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-05T14:31:00.059041+00:00",
+  "generated": "2026-09-27T10:24:40.169011+00:00",
   "scenes": [
     {
       "id": "gom_mc20_chronic_slick",
@@ -102,6 +102,32 @@
       "license": "Contains modified Copernicus Sentinel data. Sentinel-1 RTC hosted by Microsoft Planetary Computer, CC BY 4.0.",
       "ais_mode": "real",
       "notes": "Natural hydrocarbon seeps plus heavy shipping. Inside NAIS coverage. Useful as a hard case: real dark films that are not a vessel discharge.",
+      "selftest": false,
+      "extra": {}
+    },
+    {
+      "id": "kochi_msc_elsa3",
+      "title": "Arabian Sea off Kochi, MSC ELSA 3 wreck",
+      "sar_path": "sar/kochi_msc_elsa3.tif",
+      "t_sat": "2025-05-28T00:41:25.168497Z",
+      "bounds": [
+        75.998744,
+        9.176085,
+        76.273434,
+        9.448933
+      ],
+      "centroid": [
+        76.136102,
+        9.312463
+      ],
+      "crs": "EPSG:32643",
+      "mask_path": null,
+      "thumbnail": null,
+      "backdrop": null,
+      "source": "Sentinel-1 IW GRD RTC via Microsoft Planetary Computer (S1A_IW_GRDH_1SDV_20250528T004112_20250528T004137_059387_rtc)",
+      "license": "Contains modified Copernicus Sentinel data. Sentinel-1 RTC hosted by Microsoft Planetary Computer, CC BY 4.0.",
+      "ais_mode": "none",
+      "notes": "Container ship MSC ELSA 3 capsized and sank here on 25 May 2025 carrying furnace oil and diesel. Pass three days later. Outside public AIS coverage; the documented wreck position is tested as a fixed source.",
       "selftest": false,
       "extra": {}
     }

@@ -36,8 +36,14 @@ def save(job_id: str, document: Dict[str, Any]) -> Path:
     p.parent.mkdir(parents=True, exist_ok=True)
     with _LOCK:
         tmp = p.with_suffix(".json.part")
-        tmp.write_text(json.dumps(document, indent=2, default=_default), encoding="utf-8")
-        tmp.replace(p)      # atomic: a reader never sees a half-written document
+        try:
+            tmp.write_text(json.dumps(document, indent=2, default=_default), encoding="utf-8")
+            tmp.replace(p)      # atomic: a reader never sees a half-written document
+        except OSError:
+            # A full disk fails the write halfway and would leave the partial
+            # file behind on every attempt. Clear it, and let the error surface.
+            tmp.unlink(missing_ok=True)
+            raise
     prune()
     return p
 

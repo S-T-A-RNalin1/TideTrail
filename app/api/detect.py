@@ -6,7 +6,6 @@ producing coordinates that mean nothing.
 """
 from __future__ import annotations
 
-import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -14,7 +13,6 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from .. import config, pipeline, scenes as scenes_mod
-from ..geo import raster as raster_mod
 from ..jobs import store as job_store
 from ..schemas import DetectRequest, SceneOut
 
@@ -83,24 +81,17 @@ async def detect_upload(
     prefer_model: bool = Form(True),
     threshold_db: Optional[float] = Form(None),
 ) -> Dict[str, Any]:
-    """Detect on an uploaded Sigma0 GeoTIFF."""
-    name = Path(file.filename or "upload.tif").name
-    dest = Path(config.SAR_DIR) / ("upload_%s_%s" % (
-        datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S"), name))
-    with dest.open("wb") as fh:
-        shutil.copyfileobj(file.file, fh)
+    """Detect on an uploaded Sigma0 GeoTIFF. Registers it like /api/data/sar."""
+    from .. import userdata
+    from .data import MAX_SAR_MB, _save
 
+    tmp = await _save(file, MAX_SAR_MB)
     try:
-        scene = scenes_mod.describe_geotiff(dest, t_sat=t_sat, source="uploaded",
-                                           notes="uploaded at runtime")
-    except raster_mod.GeorefError as exc:
-        dest.unlink(missing_ok=True)
+        out = userdata.register_sar(tmp, file.filename or "upload.tif", t_sat)
+    except userdata.UploadError as exc:
+        tmp.unlink(missing_ok=True)
         raise HTTPException(422, str(exc)) from exc
-    except Exception as exc:
-        dest.unlink(missing_ok=True)
-        raise HTTPException(422, "could not read %s: %s" % (name, exc)) from exc
-
-    scenes_mod.upsert([scene])
+    scene = scenes_mod.get(out["scene"]["id"])
 
     job_id = job_store.new_job_id("detect")
     det = pipeline.detect_scene(scene, prefer_model=prefer_model,

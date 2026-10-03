@@ -23,6 +23,9 @@ import numpy as np
 
 from ..geo.crs import LocalAEQD
 
+# Above this a reported speed is a glitch; see resample().
+SOG_MAX_KN = 50.0
+
 
 @dataclass
 class Gap:
@@ -91,7 +94,15 @@ class Track:
             })
         return {"type": "FeatureCollection", "features": feats}
 
-    def samples(self, stride: int = 1) -> List[Dict[str, Any]]:
+    def samples(self, stride: int = 1, dense_around: Optional[float] = None,
+                dense_minutes: float = 15.0) -> List[Dict[str, Any]]:
+        """Every stride-th sample, plus every sample within dense_minutes of
+        dense_around: a ship at 14 kn moves 2 km between five-minute samples,
+        and at the radar pass its position has to be exact, not a chord."""
+        keep = set(range(0, self.n, max(1, stride)))
+        if dense_around is not None and self.n:
+            near = np.nonzero(np.abs(self.ts - float(dense_around)) <= dense_minutes * 60.0)[0]
+            keep.update(int(i) for i in near)
         return [
             {
                 "ts": int(self.ts[i]),
@@ -101,7 +112,7 @@ class Track:
                 "cog": round(float(self.cog[i]), 1),
                 "dr": bool(self.dead_reckoned[i]),
             }
-            for i in range(0, self.n, max(1, stride))
+            for i in sorted(keep)
         ]
 
 
@@ -129,6 +140,13 @@ def resample(
     lat = np.array([float(r["lat"]) for r in rows], dtype=float)[order]
     sog = np.array([float(r["sog"]) if r["sog"] is not None else np.nan for r in rows], dtype=float)[order]
     cog = np.array([float(r["cog"]) if r["cog"] is not None else np.nan for r in rows], dtype=float)[order]
+
+    # ITU-R M.1371 reserves SOG 102.3 kn and COG 360 for "not available", and
+    # a reported speed above SOG_MAX_KN is a transponder glitch for anything
+    # this system ranks. Read as numbers they become 100 kn "speed swings"
+    # and fake discharge-band hits, so they are treated as missing.
+    sog[(sog >= SOG_MAX_KN) | (sog < 0)] = np.nan
+    cog[(cog >= 360.0) | (cog < 0)] = np.nan
 
     uniq, keep = np.unique(ts, return_index=True)
     ts, lon, lat, sog, cog = uniq, lon[keep], lat[keep], sog[keep], cog[keep]

@@ -2,8 +2,8 @@
 
     python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 
-Serves the static console at / and the API under /api. Cached PNG overlays and
-any other artefact under data/ are served read only at /data.
+Serves the static console at / and the API under /api. Cached overlays, the
+optical chips, the coastline and the basemap are served read only under /data.
 
 Nothing here reaches the network. The only scripts that do are under scripts/,
 they are run before the demo, and they write into data/.
@@ -23,7 +23,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import config
-from .api import ais as ais_routes, detect as detect_routes, drift as drift_routes
+from .api import ais as ais_routes, data as data_routes, detect as detect_routes, drift as drift_routes
 from .api import health as health_routes, pipeline as pipeline_routes, report as report_routes
 
 log = logging.getLogger("tidetrace")
@@ -91,9 +91,14 @@ app.include_router(drift_routes.router)
 app.include_router(ais_routes.router)
 app.include_router(pipeline_routes.router)
 app.include_router(report_routes.router)
+app.include_router(data_routes.router)
 
 Path(config.STATIC_DIR).mkdir(parents=True, exist_ok=True)
-app.mount("/data", StaticFiles(directory=str(config.DATA_DIR)), name="data")
+# Only what the console draws is served. The AIS store, the uploads and the job
+# records stay off the web: /data used to expose all of them, ais.sqlite included.
+for _sub in ("cache", "optical", "land", "basemap"):
+    (Path(config.DATA_DIR) / _sub).mkdir(parents=True, exist_ok=True)
+    app.mount("/data/%s" % _sub, StaticFiles(directory=str(Path(config.DATA_DIR) / _sub)), name="data_%s" % _sub)
 app.mount("/static", StaticFiles(directory=str(config.STATIC_DIR)), name="static")
 
 

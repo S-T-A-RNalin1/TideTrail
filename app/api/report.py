@@ -1,11 +1,11 @@
 """GET /api/report/{job_id} and GET /api/jobs/{job_id}/export - Maritime Pollution Attribution Note.
 
-Exports Court-Admissible Maritime Pollution Attribution Note in PDF and HTML,
-sealed with a SHA-256 cryptographic scene hash and itemized telemetry.
+Exports the Maritime Pollution Attribution Note in PDF and HTML,
+carrying SHA-256 digests of the scene and the record, and itemized telemetry.
 
 Supported export formats:
-- PDF (via reportlab Platypus, publication-quality court dossier)
-- HTML (fully standalone, interactive, print-ready with SHA-256 seals)
+- PDF (via reportlab Platypus)
+- HTML (standalone and print-ready, with the same SHA-256 digests)
 - Job JSON (full telemetry and analysis document)
 - GeoJSON (GIS feature collection of all detection, drift, and AIS layers)
 """
@@ -23,6 +23,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from .. import config
+from ..ais.score import DISCHARGE_SOG
 from ..jobs import store as job_store
 
 router = APIRouter()
@@ -77,6 +78,119 @@ def _rows(doc: Dict[str, Any]) -> Dict[str, Any]:
     return {"det": det, "drift": drift, "attr": attr, "props": props}
 
 
+def _alpha_text(doc: Dict[str, Any]) -> str:
+    """The wind factor this run used, and why it has that value."""
+    phys = (doc.get("drift") or {}).get("physics") or {}
+    mo = (doc.get("drift") or {}).get("metocean") or {}
+    a = phys.get("alpha_wind", config.ALPHA_WIND)
+    if mo.get("stokes_included"):
+        return "%s (currents already include wave drift)" % a
+    return "%s (no wave drift in the currents)" % a
+
+
+def _forecast_facts(doc: Dict[str, Any]) -> Dict[str, Any]:
+    """Forecast horizon, end spread and coast check, read from the run itself."""
+    drift = doc.get("drift") or {}
+    hourly = drift.get("forecast_hourly") or []
+    coast = drift.get("coast") or {}
+    hours = (doc.get("input") or {}).get("forecast_hours")
+    spread = hourly[-1].get("spread_km") if hourly else None
+    if not coast.get("available"):
+        threat = "NOT CHECKED (no coastline data)"
+    elif coast.get("beached_fraction"):
+        threat = "YES - %.0f%% OF THE FORECAST OIL REACHES THE SHORE, THE FIRST AFTER %s H" % (
+            coast["beached_fraction"] * 100, coast.get("first_beaching_hours"))
+    elif coast.get("coast_flag"):
+        threat = "YES - FORECAST CONE REACHES THE COAST"
+    else:
+        threat = "NO - FORECAST CONE STAYS OFFSHORE"
+    return {"hours": "N/A" if hours is None else hours,
+            "end_spread_km": "N/A" if spread is None else spread,
+            "land_impact": bool(coast.get("coast_flag")), "threat": threat}
+
+
+def _course_text(traj: Dict[str, Any]) -> str:
+    """Course compared with what it was actually scored against."""
+    if traj.get("against") == "slick_axis":
+        return "COG %s deg | slick axis %s deg (diff: %s deg)" % (
+            traj.get("course_deg"), traj.get("slick_axis_deg"), traj.get("difference_deg"))
+    return "COG %s deg | drift %s deg (diff: %s deg)" % (
+        traj.get("course_deg"), traj.get("drift_bearing_deg"), traj.get("difference_deg"))
+
+
+def _reasons_text(reasons: List[str]) -> str:
+    """Reason codes as words: with_drifting_oil_1.2km -> with drifting oil 1.2 km."""
+    out = []
+    for r in reasons or []:
+        t = str(r).replace("_", " ")
+        for unit in ("km", "kn", "min", "deg", "h"):
+            t = __import__("re").sub(r"(\d)%s\b" % unit, r"\1 %s" % unit, t)
+        out.append(t)
+    return ", ".join(out)
+
+
+def _ships_lines(doc: Dict[str, Any]) -> List[str]:
+    """Radar echoes and what AIS says about each, as the note states it."""
+    sh = doc.get("ships") or {}
+    if not sh.get("available"):
+        return ["Not run: %s" % (sh.get("reason") or "no ship survey in this record.")]
+    t = sh.get("targets") or []
+    if not t:
+        return ["No ship-sized radar echoes on this pass."]
+    if sh.get("ais_checked"):
+        out = ["%d ship-sized echoes; %d match an AIS position at the pass, %d have no AIS (a vessel with its "
+               "transponder off, or a structure no map records). %d echoes on known platforms left out."
+               % (len(t), sh.get("matched", 0), sh.get("radar_only", 0), sh.get("on_known_platforms", 0))]
+    else:
+        out = ["%d ship-sized echoes. This sea has no real AIS, so they are listed but not compared." % len(t)]
+    for x in sorted(t, key=lambda x: (x.get("ais") is not None, x.get("slick_km") if x.get("slick_km") is not None else 1e9))[:10]:
+        who = ("AIS %s (MMSI %s), %.2f km from its fix" % (x["ais"].get("name"), x["ais"]["mmsi"], x["ais"]["distance_km"])
+               if x.get("ais") else ("NO AIS" if sh.get("ais_checked") else "not compared"))
+        out.append("  %.5f, %.5f  about %s m  +%.0f dB%s  %s" % (
+            x["lat"], x["lon"], x.get("extent_m"), float(x.get("contrast_db") or 0),
+            ("  %.1f km from slick" % x["slick_km"]) if x.get("slick_km") is not None else "", who))
+    return out
+
+
+def _weight_pct(doc: Dict[str, Any], key: str) -> int:
+    """A scoring weight as the percentage this run actually used."""
+    w = ((doc.get("config") or {}).get("weights") or config.WEIGHTS).get(key, 0.0)
+    return int(round(float(w) * 100))
+
+
+def _source_lines(doc: Dict[str, Any]) -> List[str]:
+    """The forward release test, as the note states it."""
+    st = doc.get("source_test") or {}
+    if not st.get("available"):
+        return ["Not run: %s" % (st.get("reason") or "no slick outline to test against.")]
+    m = st.get("method") or {}
+    out = [
+        "Finding: %s." % st.get("headline", ""),
+        st.get("detail", ""),
+        "Method: each installation within %s km and each candidate vessel (up to %s) is released"
+        % (m.get("installations_within_km", "N/A"), m.get("vessels_tested_max", "N/A")),
+        "forward %s h through the recorded wind and currents, as %s runs with both perturbed. Each run's"
+        % (m.get("hours_tested", "N/A"), m.get("members", "N/A")),
+        "fit is the harmonic mean of the share of the slick covered and the share of its oil landing"
+        " on it; the fit below is the mean over runs. Vessels are ranked by it, and the %s that fit"
+        % m.get("shortlist", 3),
+        "best form the shortlist to inspect first.",
+    ]
+    val = st.get("validation") or {}
+    if val.get("cases"):
+        out.append("Validation: in %d known-answer runs on real AIS traffic and currents, the ship that released"
+                   " the oil was ranked first in %d and on the shortlist in %d."
+                   % (val["cases"], val.get("top1", 0), val.get("shortlist3", 0)))
+    for h in (st.get("hypotheses") or [])[:10]:
+        name = h.get("name") if h.get("kind") == "installation" else "%s (MMSI %s)" % (h.get("name"), h.get("mmsi"))
+        win = ("%s to %s" % (h["window"][0], h["window"][1])) if h.get("window") else "oil does not reach the slick"
+        runs = "%d/%d runs" % (round(float(h.get("support") or 0) * int(h.get("members") or 0)), int(h.get("members") or 0))
+        out.append("  %-12s fit %.2f  %-10s cover %3.0f%%  lands %3.0f%%  %s | %s" % (
+            h.get("kind"), float(h.get("fit") or 0), runs, float(h.get("coverage") or 0) * 100,
+            float(h.get("precision") or 0) * 100, name, win))
+    return out
+
+
 def _lines(doc: Dict[str, Any]) -> List[str]:
     """Itemized text representation of the Maritime Pollution Attribution Note."""
     r = _rows(doc)
@@ -94,13 +208,14 @@ def _lines(doc: Dict[str, Any]) -> List[str]:
     out = [
         "MARITIME POLLUTION ATTRIBUTION NOTE",
         "Case Reference: %s" % doc.get("job_id"),
-        "Jurisdiction: %s | SIH %s | NTRO Space Technology" % (config.UI_TITLE, config.SIH_ID),
+        "Produced by: TideTrail %s (offline console)" % config.VERSION,
         "Generated: %s" % datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
         "",
         "CRYPTOGRAPHIC CHAIN OF CUSTODY (SHA-256 EVIDENCE SEALS)",
         "SAR Scene File Digest:   %s" % scene_hash,
         "Dossier Record Digest:   %s" % dossier_hash,
-        "Verification Status:     VERIFIED UNTAMPERED",
+        "Verification:            record these digests; recompute them on any later copy,",
+        "                         a mismatch means the copy was altered.",
         "",
         "SATELLITE SCENE & RADAR TELEMETRY",
         "Scene ID: %s" % (scene.get("id") or (doc.get("input") or {}).get("scene_id") or ("probe" if is_probe else "N/A")),
@@ -158,7 +273,7 @@ def _lines(doc: Dict[str, Any]) -> List[str]:
             "Metocean Data Source: %s" % met.get("source", "Open-Meteo ERA5 10m wind + marine currents"),
             "Mean 10m Wind Speed: %s m/s" % met.get("mean_wind_ms", "N/A"),
             "Mean Surface Current Speed: %s m/s" % met.get("mean_current_ms", "N/A"),
-            "Wind Leeway Factor (alpha): %s (Stokes drift off)" % config.ALPHA_WIND,
+            "Wind Leeway Factor (alpha): %s" % _alpha_text(doc),
             "Metocean Grid Dimensions: %s" % met.get("grid", "N/A"),
             "Metocean Time Span: %s to %s" % (met.get("t_start", "N/A"), met.get("t_end", "N/A")),
         ]
@@ -167,15 +282,15 @@ def _lines(doc: Dict[str, Any]) -> List[str]:
     if not drift:
         out.append("Not executed: clean water control scene, no slick to trace back.")
     else:
-        cone = drift.get("cone") or {}
+        cone = _forecast_facts(doc)
         out += [
             "Estimated Discharge Time: %s" % origin.get("t"),
             "Estimated Origin Coordinates: Lat %s, Lon %s" % (origin.get("lat"), origin.get("lon")),
             "Drift Age Proxy: %s hours (drift transport time, not chemical age)" % doc.get("age_hours_proxy"),
             "90%% Ensemble Uncertainty Radius: %s km (buffer: %s km)" % (origin.get("spread_km"), origin.get("buffer_km")),
             "Origin Zone Area: %s km2" % origin.get("area_km2"),
-            "Forward Forecast Horizon: 36 hours (end spread: %s km)" % cone.get("end_spread_km", "N/A"),
-            "Coastal Landfall Threat: %s" % ("YES - THREAT DETECTED" if cone.get("land_impact") else "NO - OFFSHORE DRIFT"),
+            "Forward Forecast Horizon: %s hours (end spread: %s km)" % (cone["hours"], cone["end_spread_km"]),
+            "Coastal Landfall Threat: %s" % cone["threat"],
         ]
 
     out += ["", "PIPELINE EXECUTION TELEMETRY"]
@@ -191,7 +306,13 @@ def _lines(doc: Dict[str, Any]) -> List[str]:
     else:
         out.append("No step trace recorded.")
 
-    out += ["", "RANKED CULPRIT VESSELS (ITEMIZED TELEMETRY & ATTRIBUTION)"]
+    out += ["", "SOURCE TEST (FORWARD RELEASE OF EACH CANDIDATE)"]
+    out += _source_lines(doc)
+
+    out += ["", "SHIPS ON THE RADAR (ECHOES CHECKED AGAINST AIS)"]
+    out += _ships_lines(doc)
+
+    out += ["", "RANKED VESSELS (INVESTIGATIVE LEADS, NOT FINDINGS)"]
     if not suspects:
         if is_clean:
             out.append("Not executed: clean water control scene, vessel attribution was not run.")
@@ -214,33 +335,27 @@ def _lines(doc: Dict[str, Any]) -> List[str]:
                 % (d.get("origin_distance_km"), d.get("closest_approach_utc"), d.get("time_offset_minutes")),
                 "  CPA Position: Lat %s, Lon %s" % (d.get("closest_lat"), d.get("closest_lon")),
                 "  Speed Over Ground at CPA: %s knots (%s)"
-                % (beh.get("sog_at_closest_kn"), "Discharge Band 8-18 kn" if beh.get("discharge_band") else "Outside Discharge Band"),
-                "  Course Over Ground: %s deg | Drift Bearing: %s deg | Difference: %s deg"
-                % (traj.get("course_deg"), traj.get("drift_bearing_deg"), traj.get("difference_deg")),
+                % (beh.get("sog_at_closest_kn"), ("Discharge Band %g-%g kn" % DISCHARGE_SOG) if beh.get("discharge_band") else "Outside Discharge Band"),
+                "  Course: %s" % _course_text(traj),
                 "  AIS Gap Telemetry: %s min gap (%s km from origin) | Non-reporting: %s"
-                % (beh.get("ais_gap_minutes", 0), beh.get("ais_gap_min_distance_km", "N/A"), "YES (AIS DARK PERIOD)" if beh.get("non_reporting") else "NO"),
+                % (beh.get("ais_gap_minutes", 0), beh.get("ais_gap_min_distance_km", "N/A"), "YES (AIS silent near the origin)" if beh.get("non_reporting") else "NO"),
                 "  Dead-Reckoned Track Fraction: %0.1f%%" % (float(d.get("dead_reckoned_fraction") or 0) * 100),
                 "  Scoring Sub-Components [Raw -> Weighted]:",
-                "    Proximity (30%%):   %0.3f -> %0.3f" % (float(comp.get("prox") or 0), float(wgt.get("prox") or 0)),
-                "    Temporal (20%%):    %0.3f -> %0.3f" % (float(comp.get("time") or 0), float(wgt.get("time") or 0)),
-                "    Vessel Prior (15%%):%0.3f -> %0.3f" % (float(comp.get("type") or 0), float(wgt.get("type") or 0)),
-                "    Trajectory (10%%):  %0.3f -> %0.3f" % (float(comp.get("traj") or 0), float(wgt.get("traj") or 0)),
-                "    Behavior (25%%):    %0.3f -> %0.3f" % (float(comp.get("beh") or 0), float(wgt.get("beh") or 0)),
-                "  Evidence Rationale Tags: %s" % ", ".join(reasons),
+                "    Proximity (%d%%):    %0.3f -> %0.3f" % (_weight_pct(doc, "prox"), float(comp.get("prox") or 0), float(wgt.get("prox") or 0)),
+                "    Temporal (%d%%):     %0.3f -> %0.3f" % (_weight_pct(doc, "time"), float(comp.get("time") or 0), float(wgt.get("time") or 0)),
+                "    Vessel Prior (%d%%): %0.3f -> %0.3f" % (_weight_pct(doc, "type"), float(comp.get("type") or 0), float(wgt.get("type") or 0)),
+                "    Trajectory (%d%%):   %0.3f -> %0.3f" % (_weight_pct(doc, "traj"), float(comp.get("traj") or 0), float(wgt.get("traj") or 0)),
+                "    Behavior (%d%%):     %0.3f -> %0.3f" % (_weight_pct(doc, "beh"), float(comp.get("beh") or 0), float(wgt.get("beh") or 0)),
+                "  Reasons: %s" % _reasons_text(reasons),
             ]
-
-    if doc.get("warnings"):
-        out += ["", "OPERATIONAL WARNINGS & NOTICES"]
-        for w in doc.get("warnings", []):
-            out.append("  [WARNING] %s" % w)
 
     out += [
         "",
         "LIMITATIONS & LEGAL DISCLAIMER",
         "Ranked likelihood for investigation, not legal proof of discharge.",
-        "Produced by TideTrace under Smart India Hackathon (SIH26143) standards.",
-        "Provides actionable maritime intelligence and probable cause for Indian Coast Guard",
-        "boarding, inspection, and detention under MARPOL 73/78 Annex I.",
+        "A vessel is supported only when the source test finds its own track reproduces the slick.",
+        "Produced by TideTrail. Intended to direct an Indian Coast Guard or DG Shipping",
+        "investigation under MARPOL 73/78 Annex I; it does not by itself establish a violation.",
         "Age is a drift advection proxy, not a chemical weathering analysis.",
         "Look-alike class polygons are excluded from attribution by design.",
     ]
@@ -248,7 +363,7 @@ def _lines(doc: Dict[str, Any]) -> List[str]:
 
 
 def build_pdf_report(doc: Dict[str, Any]) -> bytes:
-    """Build a publication-quality, court-admissible PDF Attribution Note using ReportLab Platypus."""
+    """Build the PDF Attribution Note with ReportLab Platypus."""
     try:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
@@ -291,7 +406,7 @@ def build_pdf_report(doc: Dict[str, Any]) -> bytes:
             self.setFillColor(colors.HexColor("#5a6e7e"))
             # Running header on later pages
             if self._pageNumber > 1:
-                self.drawString(36, 842 - 25, "TideTrace Maritime Pollution Attribution Note | Case Ref: %s" % job_id)
+                self.drawString(36, 842 - 25, "TideTrail Maritime Pollution Attribution Note | Case Ref: %s" % job_id)
                 self.setStrokeColor(colors.HexColor("#dae2ea"))
                 self.setLineWidth(0.5)
                 self.line(36, 842 - 28, 595 - 36, 842 - 28)
@@ -299,7 +414,7 @@ def build_pdf_report(doc: Dict[str, Any]) -> bytes:
             self.setStrokeColor(colors.HexColor("#dae2ea"))
             self.setLineWidth(0.5)
             self.line(36, 28, 595 - 36, 28)
-            self.drawString(36, 18, "SIH26143 | NTRO Space Technology | Sealed with SHA-256 Cryptographic Scene Hash")
+            self.drawString(36, 18, "TideTrail %s | SHA-256 digests of scene and record on page 1" % config.VERSION)
             self.drawRightString(595 - 36, 18, "Page %d of %d" % (self._pageNumber, page_count))
             self.restoreState()
 
@@ -331,11 +446,11 @@ def build_pdf_report(doc: Dict[str, Any]) -> bytes:
     # 1. Header Banner
     header_data = [
         [
-            Paragraph("<b>TIDETRACE | MARITIME POLLUTION ATTRIBUTION NOTE</b>", title_style),
+            Paragraph("<b>TIDETRAIL | MARITIME POLLUTION ATTRIBUTION NOTE</b>", title_style),
             Paragraph("<b>CASE REF:</b> %s" % job_id, bold_style),
         ],
         [
-            Paragraph("Smart India Hackathon 2026 (SIH26143) | NTRO Space Technology | Court-Admissible Dossier", sub_style),
+            Paragraph("Evidence dossier for an investigating officer", sub_style),
             Paragraph("Generated: %s" % datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"), dim_style),
         ],
     ]
@@ -353,7 +468,7 @@ def build_pdf_report(doc: Dict[str, Any]) -> bytes:
     dossier_hash = compute_dossier_sha256(doc)
     seal_data = [
         [Paragraph("<b>CRYPTOGRAPHIC CHAIN OF CUSTODY (SHA-256 EVIDENCE SEALS)</b>", bold_style),
-         Paragraph("STATUS: VERIFIED UNTAMPERED", ok_style)],
+         Paragraph("RECORD THESE DIGESTS TO VERIFY LATER COPIES", ok_style)],
         [Paragraph("<b>SAR Scene File Digest:</b>", dim_style), Paragraph(scene_hash, mono_bold)],
         [Paragraph("<b>Job Record Canonical Digest:</b>", dim_style), Paragraph(dossier_hash, mono_bold)],
     ]
@@ -483,18 +598,18 @@ def build_pdf_report(doc: Dict[str, Any]) -> bytes:
     else:
         origin = drift.get("origin") or {}
         met = drift.get("metocean") or {}
-        cone = drift.get("cone") or {}
+        cone = _forecast_facts(doc)
         met_grid = [
             [Paragraph("<b>Metocean Source</b>", dim_style), Paragraph(str(met.get("source", "Open-Meteo ERA5 / Copernicus Marine")), body_style),
-             Paragraph("<b>Wind Leeway Factor</b>", dim_style), Paragraph("%s (Stokes off)" % config.ALPHA_WIND, body_style)],
+             Paragraph("<b>Wind Leeway Factor</b>", dim_style), Paragraph(_alpha_text(doc), body_style)],
             [Paragraph("<b>Mean 10m Wind</b>", dim_style), Paragraph("%s m/s" % met.get("mean_wind_ms", "N/A"), body_style),
              Paragraph("<b>Mean Ocean Current</b>", dim_style), Paragraph("%s m/s" % met.get("mean_current_ms", "N/A"), body_style)],
             [Paragraph("<b>Estimated Origin Time</b>", dim_style), Paragraph(str(origin.get("t")), bold_style),
              Paragraph("<b>Drift Age Proxy</b>", dim_style), Paragraph("%s hours" % doc.get("age_hours_proxy"), bold_style)],
             [Paragraph("<b>Origin Coordinates</b>", dim_style), Paragraph("Lat %s, Lon %s" % (origin.get("lat"), origin.get("lon")), mono_style),
              Paragraph("<b>Origin Uncertainty</b>", dim_style), Paragraph("%s km radius (%s km2 zone)" % (origin.get("spread_km"), origin.get("area_km2")), body_style)],
-            [Paragraph("<b>Forecast Horizon</b>", dim_style), Paragraph("36 hours (spread: %s km)" % cone.get("end_spread_km", "N/A"), body_style),
-             Paragraph("<b>Landfall Threat</b>", dim_style), Paragraph("YES - IMPACT WARNING" if cone.get("land_impact") else "NO - OFFSHORE DRIFT", warn_style if cone.get("land_impact") else ok_style)],
+            [Paragraph("<b>Forecast Horizon</b>", dim_style), Paragraph("%s hours (spread: %s km)" % (cone["hours"], cone["end_spread_km"]), body_style),
+             Paragraph("<b>Landfall Threat</b>", dim_style), Paragraph(cone["threat"], warn_style if cone["land_impact"] else ok_style)],
         ]
         t_met = Table(met_grid, colWidths=[95, 166.5, 95, 166.5])
         t_met.setStyle(TableStyle([
@@ -538,8 +653,65 @@ def build_pdf_report(doc: Dict[str, Any]) -> bytes:
         story.append(t_trace)
         story.append(Spacer(1, 4))
 
-    # Section 5: Ranked Culprit Vessels & Itemized Telemetry
-    story.append(Paragraph("5. RANKED CULPRIT VESSELS (ITEMIZED TELEMETRY & ATTRIBUTION)", h2_style))
+    # Section 5: Source test, the forward release of every candidate
+    story.append(Paragraph("5. SOURCE TEST (FORWARD RELEASE OF EACH CANDIDATE)", h2_style))
+    st_rows = [[Paragraph(line.replace("&", "&amp;").replace("<", "&lt;"), body_style)]
+               for line in _source_lines(doc)[:6]]
+    st = doc.get("source_test") or {}
+    if st.get("available") and st.get("hypotheses"):
+        hyp_rows = [[Paragraph("<b>Kind</b>", dim_style), Paragraph("<b>Source</b>", dim_style),
+                     Paragraph("<b>Fit</b>", dim_style), Paragraph("<b>Covers / lands</b>", dim_style),
+                     Paragraph("<b>Release window (UTC)</b>", dim_style)]]
+        for h in st["hypotheses"][:10]:
+            nm = h.get("name") if h.get("kind") == "installation" else "%s (MMSI %s)" % (h.get("name"), h.get("mmsi"))
+            hyp_rows.append([
+                Paragraph(str(h.get("kind")), body_style),
+                Paragraph(str(nm).replace("&", "&amp;"), body_style),
+                Paragraph("%.2f" % float(h.get("fit") or 0), mono_bold),
+                Paragraph("%.0f%% / %.0f%%" % (float(h.get("coverage") or 0) * 100, float(h.get("precision") or 0) * 100), mono_style),
+                Paragraph(("%s to %s" % (h["window"][0][5:16].replace("T", " "), h["window"][1][11:16]))
+                          if h.get("window") else "does not reach the slick", body_style),
+            ])
+        t_hyp = Table(hyp_rows, colWidths=[62, 190, 36, 80, 155])
+        t_hyp.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f5f8fa")),
+            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#dae2ea")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#f0f4f8")),
+            ("TOPPADDING", (0, 0), (-1, -1), 1.5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ]))
+    t_st = Table(st_rows or [[Paragraph("Not run.", dim_style)]], colWidths=[523])
+    t_st.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#ffffff")),
+        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#dae2ea")),
+        ("TOPPADDING", (0, 0), (-1, -1), 1.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.append(t_st)
+    if st.get("available") and st.get("hypotheses"):
+        story.append(Spacer(1, 3))
+        story.append(t_hyp)
+    story.append(Spacer(1, 4))
+
+    # Section 6: Ships on the radar
+    story.append(Paragraph("6. SHIPS ON THE RADAR (ECHOES CHECKED AGAINST AIS)", h2_style))
+    t_ships = Table([[Paragraph(line.replace("&", "&amp;").replace("<", "&lt;"), body_style)]
+                     for line in _ships_lines(doc)[:11]], colWidths=[523])
+    t_ships.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#ffffff")),
+        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#dae2ea")),
+        ("TOPPADDING", (0, 0), (-1, -1), 1.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story.append(t_ships)
+    story.append(Spacer(1, 4))
+
+    # Section 7: Ranked vessels, which are leads unless the source test supports one
+    story.append(Paragraph("7. RANKED VESSELS (INVESTIGATIVE LEADS, NOT FINDINGS)", h2_style))
     suspects = (doc.get("attribution") or {}).get("suspects", [])
     if not suspects:
         empty_reason = (
@@ -585,10 +757,10 @@ def build_pdf_report(doc: Dict[str, Any]) -> bytes:
                  Paragraph("Lat %s, Lon %s" % (d.get("closest_lat"), d.get("closest_lon")), mono_style)],
                 [Paragraph("<b>Speed Over Ground (SOG)</b>", dim_style),
                  Paragraph("%s kn (%s)" % (beh.get("sog_at_closest_kn"), "Discharge Band" if beh.get("discharge_band") else "Nominal"), body_style),
-                 Paragraph("<b>Course & Drift Alignment</b>", dim_style),
-                 Paragraph("COG %s deg | Drift %s deg (diff: %s deg)" % (traj.get("course_deg"), traj.get("drift_bearing_deg"), traj.get("difference_deg")), body_style)],
+                 Paragraph("<b>Course Alignment</b>", dim_style),
+                 Paragraph(_course_text(traj), body_style)],
                 [Paragraph("<b>AIS Gap Telemetry</b>", dim_style),
-                 Paragraph("%s min gap at %s km (%s)" % (beh.get("ais_gap_minutes", 0), beh.get("ais_gap_min_distance_km", 0), "DARK VESSEL SILENCE" if beh.get("non_reporting") else "Continuous"), warn_style if beh.get("non_reporting") else body_style),
+                 Paragraph("%s min gap at %s km (%s)" % (beh.get("ais_gap_minutes", 0), beh.get("ais_gap_min_distance_km", 0), "AIS silent near the origin" if beh.get("non_reporting") else "Continuous"), warn_style if beh.get("non_reporting") else body_style),
                  Paragraph("<b>Track Quality</b>", dim_style),
                  Paragraph("DR: %.1f%% | Confidence: %.1f%%" % (float(d.get("dead_reckoned_fraction") or 0) * 100, float(s.get("confidence") or 1.0) * 100), body_style)],
             ]
@@ -606,11 +778,11 @@ def build_pdf_report(doc: Dict[str, Any]) -> bytes:
 
             # Subscores row (using standard ASCII -> arrows)
             sub_scores = [
-                [Paragraph(f"<b>Proximity (30%):</b> {float(comp.get('prox') or 0):.2f} -&gt; <b>{float(wgt.get('prox') or 0):.2f}</b>", body_style),
-                 Paragraph(f"<b>Time (20%):</b> {float(comp.get('time') or 0):.2f} -&gt; <b>{float(wgt.get('time') or 0):.2f}</b>", body_style),
-                 Paragraph(f"<b>Type Prior (15%):</b> {float(comp.get('type') or 0):.2f} -&gt; <b>{float(wgt.get('type') or 0):.2f}</b>", body_style),
-                 Paragraph(f"<b>Trajectory (10%):</b> {float(comp.get('traj') or 0):.2f} -&gt; <b>{float(wgt.get('traj') or 0):.2f}</b>", body_style),
-                 Paragraph(f"<b>Behavior (25%):</b> {float(comp.get('beh') or 0):.2f} -&gt; <b>{float(wgt.get('beh') or 0):.2f}</b>", body_style)],
+                [Paragraph(f"<b>Proximity ({_weight_pct(doc, 'prox')}%):</b> {float(comp.get('prox') or 0):.2f} -&gt; <b>{float(wgt.get('prox') or 0):.2f}</b>", body_style),
+                 Paragraph(f"<b>Time ({_weight_pct(doc, 'time')}%):</b> {float(comp.get('time') or 0):.2f} -&gt; <b>{float(wgt.get('time') or 0):.2f}</b>", body_style),
+                 Paragraph(f"<b>Type Prior ({_weight_pct(doc, 'type')}%):</b> {float(comp.get('type') or 0):.2f} -&gt; <b>{float(wgt.get('type') or 0):.2f}</b>", body_style),
+                 Paragraph(f"<b>Trajectory ({_weight_pct(doc, 'traj')}%):</b> {float(comp.get('traj') or 0):.2f} -&gt; <b>{float(wgt.get('traj') or 0):.2f}</b>", body_style),
+                 Paragraph(f"<b>Behavior ({_weight_pct(doc, 'beh')}%):</b> {float(comp.get('beh') or 0):.2f} -&gt; <b>{float(wgt.get('beh') or 0):.2f}</b>", body_style)],
             ]
             t_sub = Table(sub_scores, colWidths=[104.6, 104.6, 104.6, 104.6, 104.6])
             t_sub.setStyle(TableStyle([
@@ -622,35 +794,21 @@ def build_pdf_report(doc: Dict[str, Any]) -> bytes:
             vessel_flow.append(t_sub)
 
             # Rationale tags
-            reasons_str = "Evidence Rationale: " + (", ".join(reasons) if reasons else "Nominal criteria met")
+            reasons_str = "Reasons: " + (_reasons_text(reasons) if reasons else "none recorded")
             vessel_flow.append(Paragraph(reasons_str, dim_style))
             vessel_flow.append(Spacer(1, 4))
             story.append(KeepTogether(vessel_flow))
 
-    # Pipeline Warnings (if present)
-    if doc.get("warnings"):
-        story.append(Spacer(1, 3))
-        story.append(Paragraph("OPERATIONAL WARNINGS & NOTICES", h2_style))
-        warn_data = [[Paragraph(f"<b>[WARNING]</b> {w}", warn_style)] for w in doc.get("warnings", [])]
-        t_warn = Table(warn_data, colWidths=[523])
-        t_warn.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fff8ea")),
-            ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#e8a030")),
-            ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#fae0b0")),
-            ("PADDING", (0, 0), (-1, -1), 3),
-        ]))
-        story.append(t_warn)
-
     # Limitations & Legal Disclaimer
     story.append(Spacer(1, 3))
-    story.append(Paragraph("6. LIMITATIONS & ADMIRALTY EVIDENTIARY STANDARD NOTICE", h2_style))
+    story.append(Paragraph("8. LIMITATIONS & STANDARD OF THIS NOTE", h2_style))
     legal_text = (
-        "<b>Investigative Intelligence Notice:</b> Ranked likelihood for investigation, not legal proof of discharge. "
-        "Compiled automatically by TideTrace under Smart India Hackathon 2026 (SIH26143) standards to provide actionable "
-        "probable cause for Indian Coast Guard and port state control (PSC) boarding, inspection, and detention under "
-        "MARPOL 73/78 Annex I. Drift age is a metocean advection proxy and not a chemical laboratory weathering age. "
-        "Look-alike class polygons are excluded from attribution by design. "
-        "Cryptographic Chain of Custody: Auto-exported tamper-evident dossier sealed with SHA-256 scene and record hashes."
+        "<b>Standard of this note:</b> ranked likelihood for investigation, not legal proof of discharge. "
+        "A vessel is supported only when the source test finds its own track reproduces the slick. "
+        "Produced by TideTrail to direct an Indian Coast Guard or DG Shipping investigation under "
+        "MARPOL 73/78 Annex I; it does not by itself establish a violation. Drift age is a metocean advection "
+        "proxy, not a laboratory weathering age. Look-alike polygons are excluded from attribution by design. "
+        "Chain of custody: the SHA-256 digests are computed at export; recompute them on any later copy."
     )
     t_legal = Table([[Paragraph(legal_text, dim_style)]], colWidths=[523])
     t_legal.setStyle(TableStyle([
@@ -665,7 +823,7 @@ def build_pdf_report(doc: Dict[str, Any]) -> bytes:
 
 
 def build_html_report(doc: Dict[str, Any]) -> str:
-    """Build a modern, interactive, court-admissible HTML Maritime Pollution Attribution Note."""
+    """Build the interactive HTML Maritime Pollution Attribution Note."""
     job_id = doc.get("job_id", "UNKNOWN")
     scene_hash = compute_scene_sha256(doc)
     dossier_hash = compute_dossier_sha256(doc)
@@ -675,17 +833,29 @@ def build_html_report(doc: Dict[str, Any]) -> str:
     drift = doc.get("drift") or {}
     origin = drift.get("origin") or {}
     met = drift.get("metocean") or {}
-    cone = drift.get("cone") or {}
+    cone = _forecast_facts(doc)
     inp = doc.get("input") or {}
     r = _rows(doc)
     props = r["props"]
     suspects = (doc.get("attribution") or {}).get("suspects", [])
     trace = doc.get("trace") or []
-    warnings = doc.get("warnings") or []
     plain_lines = "\n".join(html.escape(line) for line in _lines(doc))
     is_probe = doc.get("mode") == "operator_probe"
     is_clean = doc.get("status") in ("clean_water", "no_oil_detected") or (not props and not is_probe)
 
+    ships_block = "".join("<p>%s</p>" % html.escape(line) for line in _ships_lines(doc)[:11])
+    source_block = "".join("<p>%s</p>" % html.escape(line) for line in _source_lines(doc)[:6])
+    _st = doc.get("source_test") or {}
+    if _st.get("available") and _st.get("hypotheses"):
+        rows = ""
+        for h in _st["hypotheses"][:10]:
+            nm = h.get("name") if h.get("kind") == "installation" else "%s (MMSI %s)" % (h.get("name"), h.get("mmsi"))
+            win = ("%s to %s UTC" % (h["window"][0][5:16].replace("T", " "), h["window"][1][11:16])) if h.get("window") else "does not reach the slick"
+            rows += "<tr><td>%s</td><td>%s</td><td class='mono'>%.2f</td><td class='mono'>%.0f%% / %.0f%%</td><td>%s</td></tr>" % (
+                html.escape(str(h.get("kind"))), html.escape(str(nm)), float(h.get("fit") or 0),
+                float(h.get("coverage") or 0) * 100, float(h.get("precision") or 0) * 100, html.escape(win))
+        source_block += ("<table><thead><tr><th>Kind</th><th>Source</th><th>Fit</th><th>Covers / lands</th>"
+                         "<th>Release window</th></tr></thead><tbody>%s</tbody></table>" % rows)
     suspect_cards = ""
     for s in suspects:
         d = s.get("detail") or {}
@@ -693,7 +863,7 @@ def build_html_report(doc: Dict[str, Any]) -> str:
         wgt = s.get("weighted") or {}
         traj = d.get("trajectory") or {}
         beh = d.get("behavior") or {}
-        reasons_html = "".join("<span class='tag'>%s</span>" % html.escape(str(r_item)) for r_item in (s.get("reasons") or []))
+        reasons_html = "".join("<span class='tag'>%s</span>" % html.escape(_reasons_text([r_item])) for r_item in (s.get("reasons") or []))
 
         suspect_cards += f"""
         <div class="suspect-card">
@@ -714,15 +884,15 @@ def build_html_report(doc: Dict[str, Any]) -> str:
             <div class="sc-item"><span class="k">CPA Time</span><span class="v">{d.get('closest_approach_utc')} (Δ {d.get('time_offset_minutes')} min)</span></div>
             <div class="sc-item"><span class="k">CPA Position</span><span class="v mono">{d.get('closest_lat')}, {d.get('closest_lon')}</span></div>
             <div class="sc-item"><span class="k">Speed at CPA</span><span class="v">{beh.get('sog_at_closest_kn')} kn ({'Discharge Band' if beh.get('discharge_band') else 'Nominal'})</span></div>
-            <div class="sc-item"><span class="k">Course / Drift</span><span class="v">COG {traj.get('course_deg')}° | Drift {traj.get('drift_bearing_deg')}° (Δ {traj.get('difference_deg')}°)</span></div>
-            <div class="sc-item"><span class="k">AIS Gap Status</span><span class="v {'warn' if beh.get('non_reporting') else ''}">{beh.get('ais_gap_minutes', 0)} min ({'AIS Dark Silence' if beh.get('non_reporting') else 'Continuous'})</span></div>
+            <div class="sc-item"><span class="k">Course</span><span class="v">{html.escape(_course_text(traj))}</span></div>
+            <div class="sc-item"><span class="k">AIS Gap Status</span><span class="v {'warn' if beh.get('non_reporting') else ''}">{beh.get('ais_gap_minutes', 0)} min ({'AIS silent near the origin' if beh.get('non_reporting') else 'Continuous'})</span></div>
           </div>
           <div class="subscores-bar">
-            <span class="sub-item">Proximity (30%): <b>{float(comp.get('prox') or 0):.2f} → {float(wgt.get('prox') or 0):.2f}</b></span>
-            <span class="sub-item">Time (20%): <b>{float(comp.get('time') or 0):.2f} → {float(wgt.get('time') or 0):.2f}</b></span>
-            <span class="sub-item">Type Prior (15%): <b>{float(comp.get('type') or 0):.2f} → {float(wgt.get('type') or 0):.2f}</b></span>
-            <span class="sub-item">Trajectory (10%): <b>{float(comp.get('traj') or 0):.2f} → {float(wgt.get('traj') or 0):.2f}</b></span>
-            <span class="sub-item">Behavior (25%): <b>{float(comp.get('beh') or 0):.2f} → {float(wgt.get('beh') or 0):.2f}</b></span>
+            <span class="sub-item">Proximity ({_weight_pct(doc, 'prox')}%): <b>{float(comp.get('prox') or 0):.2f} → {float(wgt.get('prox') or 0):.2f}</b></span>
+            <span class="sub-item">Time ({_weight_pct(doc, 'time')}%): <b>{float(comp.get('time') or 0):.2f} → {float(wgt.get('time') or 0):.2f}</b></span>
+            <span class="sub-item">Type Prior ({_weight_pct(doc, 'type')}%): <b>{float(comp.get('type') or 0):.2f} → {float(wgt.get('type') or 0):.2f}</b></span>
+            <span class="sub-item">Trajectory ({_weight_pct(doc, 'traj')}%): <b>{float(comp.get('traj') or 0):.2f} → {float(wgt.get('traj') or 0):.2f}</b></span>
+            <span class="sub-item">Behavior ({_weight_pct(doc, 'beh')}%): <b>{float(comp.get('beh') or 0):.2f} → {float(wgt.get('beh') or 0):.2f}</b></span>
           </div>
           <div class="tags-row">{reasons_html}</div>
         </div>
@@ -746,15 +916,7 @@ def build_html_report(doc: Dict[str, Any]) -> str:
         </tr>
         """
 
-    warnings_block = ""
-    if warnings:
-        warn_items = "".join(f"<li>{html.escape(str(w))}</li>" for w in warnings)
-        warnings_block = f"""
-        <div class="warning-banner">
-          <b>Operational Warnings:</b>
-          <ul>{warn_items}</ul>
-        </div>
-        """
+
 
     # Section 1 content
     scene_id_val = str(scene.get("id") or inp.get("scene_id") or ("probe" if is_probe else "N/A"))
@@ -806,15 +968,15 @@ def build_html_report(doc: Dict[str, Any]) -> str:
         sec3_html = f"""
         <div class="grid2">
           <div class="kv"><span class="k">Metocean Source</span><span class="v">{html.escape(str(met.get('source', 'Open-Meteo ERA5 10m wind + marine currents')))}</span></div>
-          <div class="kv"><span class="k">Wind Leeway Factor</span><span class="v">{config.ALPHA_WIND} (Stokes drift off)</span></div>
+          <div class="kv"><span class="k">Wind Leeway Factor</span><span class="v">{html.escape(_alpha_text(doc))}</span></div>
           <div class="kv"><span class="k">Mean 10m Wind Speed</span><span class="v">{met.get('mean_wind_ms', 'N/A')} m/s</span></div>
           <div class="kv"><span class="k">Mean Ocean Surface Current</span><span class="v">{met.get('mean_current_ms', 'N/A')} m/s</span></div>
           <div class="kv"><span class="k">Estimated Discharge Time</span><span class="v">{origin.get('t', 'N/A')}</span></div>
           <div class="kv"><span class="k">Drift Age Proxy</span><span class="v">{doc.get('age_hours_proxy', 'N/A')} hours</span></div>
           <div class="kv"><span class="k">Origin Coordinates Fix</span><span class="v mono">{origin.get('lat')}, {origin.get('lon')}</span></div>
           <div class="kv"><span class="k">90% Ensemble Radius / Area</span><span class="v">{origin.get('spread_km')} km ({origin.get('area_km2')} km²)</span></div>
-          <div class="kv"><span class="k">Forecast Horizon</span><span class="v">36 hours (spread: {cone.get('end_spread_km', 'N/A')} km)</span></div>
-          <div class="kv"><span class="k">Landfall Impact Threat</span><span class="v">{'YES - THREAT DETECTED' if cone.get('land_impact') else 'NO - OFFSHORE DRIFT'}</span></div>
+          <div class="kv"><span class="k">Forecast Horizon</span><span class="v">{cone['hours']} hours (spread: {cone['end_spread_km']} km)</span></div>
+          <div class="kv"><span class="k">Landfall Impact Threat</span><span class="v">{cone['threat']}</span></div>
         </div>
         """
 
@@ -942,27 +1104,26 @@ def build_html_report(doc: Dict[str, Any]) -> str:
 </head>
 <body>
   <nav class="toolbar">
-    <a href="/" class="brand">TIDETRACE CONSOLE</a>
+    <a href="/" class="brand">TIDETRAIL CONSOLE</a>
     <div class="btnrow">
       <a href="/api/jobs/{job_id}/export?format=pdf" class="btn primary" download="attribution_{job_id}.pdf">Download PDF</a>
       <a href="/api/jobs/{job_id}/export?format=html" class="btn" download="attribution_{job_id}.html">Download HTML</a>
       <button class="btn" onclick="window.print()">Print Dossier</button>
-      <a href="/api/jobs/{job_id}?download=1" class="btn" download="tidetrace_{job_id}.json">Job JSON</a>
-      <a href="/api/jobs/{job_id}/geojson?download=1" class="btn" download="tidetrace_{job_id}.geojson">GeoJSON</a>
+      <a href="/api/jobs/{job_id}?download=1" class="btn" download="tidetrail_{job_id}.json">Job JSON</a>
+      <a href="/api/jobs/{job_id}/geojson?download=1" class="btn" download="tidetrail_{job_id}.geojson">GeoJSON</a>
     </div>
   </nav>
 
   <main class="container">
-    {warnings_block}
     <header class="header-card">
       <h1>Maritime Pollution Attribution Note</h1>
-      <div class="subtitle">{html.escape(config.UI_TITLE)} | SIH {html.escape(config.SIH_ID)} | NTRO Space Technology</div>
+      <div class="subtitle">TideTrail {html.escape(config.VERSION)} | Evidence dossier for an investigating officer</div>
       <div class="kv"><span class="k">Case Identifier</span><span class="v mono">{html.escape(job_id)}</span></div>
       <div class="kv"><span class="k">Report Generated</span><span class="v">{datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")}</span></div>
       <div class="kv"><span class="k">Admiralty Evidentiary Standard</span><span class="v">Admissible MARPOL 73/78 Annex I Dossier</span></div>
 
       <div class="seal-box">
-        <div class="seal-title">Cryptographic Chain of Custody (SHA-256 Tamper-Evident Seals)</div>
+        <div class="seal-title">Cryptographic Chain of Custody (SHA-256 digests)</div>
         <div class="hash-row">
           <span class="label">SAR Scene Digest (Raw Data):</span>
           <span class="mono">{scene_hash}</span>
@@ -973,7 +1134,7 @@ def build_html_report(doc: Dict[str, Any]) -> str:
         </div>
         <div class="hash-row">
           <span class="label">Cryptographic Integrity:</span>
-          <span class="mono" style="color:var(--good);font-weight:700;">SEALED &amp; VERIFIED UNTAMPERED</span>
+          <span class="mono" style="color:var(--good);font-weight:700;">DIGESTS COMPUTED AT EXPORT</span>
         </div>
       </div>
     </header>
@@ -1015,22 +1176,32 @@ def build_html_report(doc: Dict[str, Any]) -> str:
     </section>
 
     <section class="section">
-      <h2>5. Ranked Culprit Vessels (Itemized Navigational Telemetry &amp; Attribution)</h2>
+      <h2>5. Source Test (Forward Release of Each Candidate)</h2>
+      {source_block}
+    </section>
+
+    <section class="section">
+      <h2>6. Ships on the Radar (Echoes Checked Against AIS)</h2>
+      {ships_block}
+    </section>
+
+    <section class="section">
+      <h2>7. Ranked Vessels (Investigative Leads, Not Findings)</h2>
       {suspect_cards}
     </section>
 
     <section class="section">
-      <h2>6. Evidentiary Chain of Custody &amp; Legal Disclaimer</h2>
+      <h2>8. Chain of Custody &amp; Limitations</h2>
       <div class="legal-box">
-        <p><b>Evidentiary Standard Notice:</b> Ranked likelihood for investigation, not legal proof of discharge.</p>
-        <p>This Maritime Pollution Attribution Note is compiled automatically by TideTrace under Smart India Hackathon (SIH26143) standards to provide actionable probable cause for Indian Coast Guard boarding, inspection, and detention under MARPOL 73/78 Annex I.</p>
+        <p><b>Standard of this note:</b> ranked likelihood for investigation, not legal proof of discharge. A vessel is supported only when the source test finds its own track reproduces the slick.</p>
+        <p>Produced by TideTrail to direct an Indian Coast Guard or DG Shipping investigation under MARPOL 73/78 Annex I. It does not by itself establish a violation.</p>
         <p>Age is an oceanographic drift advection proxy, not a chemical laboratory weathering age. Look-alike class polygons are excluded from attribution by design.</p>
-        <p>Cryptographic Chain of Custody: Auto-exported tamper-evident dossier sealed with SHA-256 scene and record hashes.</p>
+        <p>Chain of custody: the SHA-256 digests above are computed at export. Record them; recompute them on any later copy, and a mismatch means the copy was altered.</p>
       </div>
     </section>
 
     <section class="section">
-      <h2>7. Plaintext Telemetry Dossier</h2>
+      <h2>9. Plaintext Telemetry Dossier</h2>
       <pre class="plain-dossier">{plain_lines}</pre>
     </section>
   </main>
@@ -1107,7 +1278,7 @@ def export_job(
         from .pipeline import _clean_nans
         headers = {}
         if download:
-            headers["Content-Disposition"] = 'attachment; filename="tidetrace_%s.json"' % job_id
+            headers["Content-Disposition"] = 'attachment; filename="tidetrail_%s.json"' % job_id
         return Response(
             content=json.dumps(_clean_nans(doc), indent=2, default=str),
             media_type="application/json",
@@ -1119,7 +1290,7 @@ def export_job(
         fc = build_job_geojson(doc)
         headers = {}
         if download:
-            headers["Content-Disposition"] = 'attachment; filename="tidetrace_%s.geojson"' % job_id
+            headers["Content-Disposition"] = 'attachment; filename="tidetrail_%s.geojson"' % job_id
         return Response(
             content=json.dumps(_clean_nans(fc), indent=2, default=str),
             media_type="application/geo+json",

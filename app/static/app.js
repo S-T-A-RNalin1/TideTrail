@@ -27,6 +27,12 @@
   // ---------------------------------------------------------------- helpers
   function $(id) { return document.getElementById(id); }
 
+  /* Read a colour token from the stylesheet, so the map and the canvas chart
+     follow the theme instead of carrying a second palette of their own. */
+  function cssv(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
   function el(tag, cls, text) {
     var n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -42,7 +48,11 @@
 
   function utc(iso) {
     if (!iso) return "n/a";
-    var d = new Date(iso);
+    // AIS times arrive as naive UTC ("2023-08-29T01:59:10"), and a browser
+    // reads a naive timestamp as local time: in India that shifted them 5.5 h.
+    var s = String(iso);
+    if (/^\d{4}-\d\d-\d\dT\d\d:\d\d(:\d\d(\.\d+)?)?$/.test(s)) s += "Z";
+    var d = new Date(s);
     if (isNaN(d.getTime())) return String(iso);
     return d.toISOString().replace("T", " ").replace(/\.\d+Z?$/, "").replace("Z", "") + " UTC";
   }
@@ -66,7 +76,11 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body || {})
     }).then(function (r) {
-      if (!r.ok) return r.text().then(function (t) { throw new Error(r.status + " " + t.slice(0, 400)); });
+      if (!r.ok) return r.text().then(function (t) {
+        var msg = t;
+        try { msg = JSON.parse(t).detail || t; } catch (e) { /* not JSON */ }
+        throw new Error(typeof msg === "string" ? msg.slice(0, 400) : r.status + " error");
+      });
       return r.json();
     });
   }
@@ -115,7 +129,7 @@
     // broken. The class mask and every vector layer stay above both.
     ["sar", "optical", "mask", "oil", "lookalike", "hindcast",
       "cone_back", "origin", "forecast", "cone_fwd", "tracks",
-      "sim_slick", "vessels"].forEach(function (name) {
+      "sim_slick", "sources", "ships", "vessels"].forEach(function (name) {
         layerGroup[name] = L.layerGroup().addTo(map);
       });
 
@@ -179,8 +193,8 @@
         // sea rather than as a hole, which is both better looking and more
         // truthful: offshore of the footprint there really is only more sea.
         var wash = ctx.createLinearGradient(0, 0, w, h);
-        wash.addColorStop(0, "#0f1e2b");
-        wash.addColorStop(1, "#132735");
+        wash.addColorStop(0, cssv("--chart-sea-1"));
+        wash.addColorStop(1, cssv("--chart-sea-2"));
         ctx.fillStyle = wash;
         ctx.fillRect(0, 0, w, h);
 
@@ -200,7 +214,7 @@
           if (spanLon / stepChoices[i] <= 4) { step = stepChoices[i]; break; }
         }
 
-        ctx.strokeStyle = "rgba(148, 178, 198, 0.13)";
+        ctx.strokeStyle = cssv("--chart-grid");
         ctx.lineWidth = 1;
         ctx.beginPath();
 
@@ -219,8 +233,8 @@
         ctx.stroke();
 
         // The tile's own north-west corner, stamped like a chart margin.
-        ctx.fillStyle = "rgba(148, 178, 198, 0.30)";
-        ctx.font = "10px ui-monospace, Consolas, monospace";
+        ctx.fillStyle = cssv("--chart-label");
+        ctx.font = "10px Bahnschrift, 'DIN Alternate', 'Arial Narrow', sans-serif";
         ctx.fillText(_dm(nw.lat, "NS") + "  " + _dm(nw.lng, "EW"), 6, 14);
 
         return tile;
@@ -303,15 +317,14 @@
       }
       ctx.closePath();
     }
-    ctx.fillStyle = LAND_FILL;
+    ctx.fillStyle = cssv("--chart-land");
     ctx.fill("evenodd");
-    ctx.strokeStyle = LAND_EDGE;
+    ctx.strokeStyle = cssv("--chart-land-edge");
     ctx.lineWidth = 1;
     ctx.stroke();
   }
 
-  var LAND_FILL = "#1d2f3c";
-  var LAND_EDGE = "rgba(126, 164, 188, 0.55)";
+
 
   function addBasemaps() {
     // Drawn before anything else and never removed, so there is always a chart
@@ -435,7 +448,7 @@
         ).addTo(layerGroup.oil);
 
         L.circleMarker([inp.lat, inp.lon], {
-          radius: 5, color: "#ffffff", weight: 2,
+          radius: 5, color: MAPC.paper, weight: 2,
           fillColor: MAPC.oil, fillOpacity: 1
         }).addTo(layerGroup.oil);
       }
@@ -519,7 +532,7 @@
       ).addTo(layerGroup.origin);
 
       L.circleMarker([d.origin.lat, d.origin.lon], {
-        radius: 4, color: "#ffffff", weight: 2, fillColor: MAPC.origin, fillOpacity: 1
+        radius: 4, color: MAPC.paper, weight: 2, fillColor: MAPC.origin, fillOpacity: 1
       }).bindTooltip("origin estimate, zone centre").addTo(layerGroup.origin);
     }
 
@@ -539,30 +552,61 @@
 
   /* The map's own palette, kept in one place so it cannot drift away from the
      stylesheet. */
-  var MAPC = {
-    oil: "#f97316",
-    lookalike: "#eab308",
-    hind: "#f59e0b",
-    hindEdge: "#d97706",
-    hindFill: "#78350f",
-    origin: "#0ea5e9",
-    fore: "#38bdf8",
-    gap: "#ef4444"
-  };
+  var MAPC = {};
+  var RANK_COLORS = [];
 
-  /* Rank 1 is crimson-coral like lead suspect. Ranks 2-3 step down into amber/gold,
-     and everything below is slate. */
-  var RANK_COLORS = ["#f43f5e", "#f97316", "#eab308", "#64748b", "#64748b",
-    "#64748b", "#64748b", "#64748b", "#64748b", "#64748b"];
+  /* Filled from the stylesheet on boot and on every theme change. The past
+     (backtrack, release zone) is ochre, the future (forecast) is depth blue,
+     the oil and its candidate sources are chart magenta. */
+  function refreshMapColors() {
+    MAPC.oil = cssv("--oil");
+    MAPC.lookalike = cssv("--lookalike");
+    MAPC.hind = cssv("--hind");
+    MAPC.hindEdge = cssv("--hind");
+    MAPC.hindFill = cssv("--hind");
+    MAPC.origin = cssv("--hind");
+    MAPC.fore = cssv("--fore");
+    MAPC.gap = cssv("--bad");
+    MAPC.flag = cssv("--flag");
+    MAPC.warn = cssv("--warn");
+    MAPC.slate = cssv("--ink-3");
+    MAPC.paper = cssv("--panel");
+    RANK_COLORS = [MAPC.flag, MAPC.warn, MAPC.warn].concat(
+      [0, 0, 0, 0, 0, 0, 0].map(function () { return MAPC.slate; }));
+  }
+
+  /* Magenta means one thing: the vessel is on the forward-test shortlist, the
+     few whose own released oil best reproduces the slick. Every other lead is
+     drawn in neutral light tones, which read on the dark imagery in either
+     theme without implying a finding. */
+  function supported(s) {
+    var st = (state.job && state.job.source_test) || {};
+    return (st.shortlist || []).some(function (v) { return String(v.mmsi) === String(s.mmsi); });
+  }
+
+  function vesselColor(s) {
+    if (supported(s)) return MAPC.flag;
+    return s.rank === 1 ? "#f1f1ec" : "#c9cbc2";
+  }
 
   function rankColor(rank) {
-    return RANK_COLORS[Math.min(rank - 1, RANK_COLORS.length - 1)] || "#64748b";
+    return RANK_COLORS[Math.min(rank - 1, RANK_COLORS.length - 1)] || MAPC.slate;
+  }
+
+  /* Ten tracks and ten markers bury the chart. The three leading vessels are
+     drawn, plus whichever vessel the analyst has selected. */
+  function onChart(s) {
+    return s.rank <= 3 || String(s.mmsi) === String(state.selected);
+  }
+
+  function reasonText(r) {
+    return String(r).replace(/_/g, " ").replace(/(\d)km\b/g, "$1 km").replace(/(\d)h\b/g, "$1 h");
   }
 
   function drawTracks(suspects) {
     layerGroup.tracks.clearLayers();
-    suspects.forEach(function (s) {
-      var color = rankColor(s.rank);
+    suspects.filter(onChart).forEach(function (s) {
+      var color = vesselColor(s);
       var weight = s.rank === 1 ? 4 : (s.rank <= 3 ? 2.5 : 1.6);
       var gj = (s.track || {}).geojson;
       if (!gj) return;
@@ -579,9 +623,9 @@
           "MMSI " + s.mmsi + "<br>" +
           "rank " + s.rank + ", score " + fmt(s.score, 1) + "<br>" +
           "type " + s.type + "<br>" +
-          (dr ? "<b style='color:" + MAPC.gap + "'>NON-REPORTING segment, " +
-            fmt(f.properties.gap_minutes, 0) + " min</b><br>" : "") +
-          s.reasons.join("<br>")
+          (dr ? "<b style='color:" + MAPC.gap + "'>AIS silent for " +
+            fmt(f.properties.gap_minutes, 0) + " min (position dead reckoned)</b><br>" : "") +
+          s.reasons.slice(0, 3).map(reasonText).join("<br>")
         ).addTo(layerGroup.tracks);
       });
     });
@@ -689,7 +733,8 @@
       lat: a.lat + ratio * (b.lat - a.lat),
       lon: a.lon + ratio * (b.lon - a.lon),
       sog: a.sog + ratio * (b.sog - a.sog),
-      cog: a.cog + ratio * (b.cog - a.cog),
+      // the short way round: 350 to 10 degrees passes through north, not south
+      cog: (a.cog + ratio * ((((b.cog - a.cog) % 360) + 540) % 360 - 180) + 360) % 360,
       dr: a.dr || b.dr
     };
   }
@@ -745,7 +790,7 @@
           ).addTo(gSlick);
 
           L.circleMarker([envH.lat, envH.lon], {
-            radius: 5, color: "#ffffff", weight: 2,
+            radius: 5, color: MAPC.paper, weight: 2,
             fillColor: MAPC.hind, fillOpacity: 1
           }).addTo(gSlick);
         }
@@ -764,7 +809,7 @@
           ).addTo(gSlick);
 
           L.circleMarker([envF.lat, envF.lon], {
-            radius: 5, color: "#ffffff", weight: 2,
+            radius: 5, color: MAPC.paper, weight: 2,
             fillColor: MAPC.fore, fillOpacity: 1
           }).addTo(gSlick);
         }
@@ -772,13 +817,13 @@
     }
 
     // 2. Dynamic vessels at time ts
-    (state.suspects || []).forEach(function (s) {
+    (state.suspects || []).filter(onChart).forEach(function (s) {
       var p = interpolateSample((s.track || {}).samples || [], ts);
       if (!p) return;
-      var color = rankColor(s.rank);
+      var color = vesselColor(s);
       L.circleMarker([p.lat, p.lon], {
         radius: s.rank === 1 ? 7 : 5,
-        color: p.dr ? MAPC.gap : "#04101a",
+        color: p.dr ? MAPC.gap : MAPC.paper,
         weight: p.dr ? 2.5 : 1.5,
         fillColor: color,
         fillOpacity: p.dr ? 0.6 : 1
@@ -841,14 +886,14 @@
       var inp = job.input || {};
       var line = el("div", "verdict-line");
       line.appendChild(document.createTextNode("Probe analysis, "));
-      line.appendChild(el("span", "qty", top ? "culprit identified" : "drift mapped"));
+      line.appendChild(el("span", "qty", top ? "vessels ranked as leads" : "drift mapped"));
       box.appendChild(line);
 
       var pf = el("div", "verdict-facts");
       factRow(pf, "Target mode", "Ad-hoc spill probe");
       factRow(pf, "Coordinate", fmt(inp.lat, 4) + "°, " + fmt(inp.lon, 4) + "°");
       factRow(pf, "Origin", drift && drift.origin ? utc(drift.origin.t).replace(" UTC", "") : "n/a");
-      factRow(pf, "Lead suspect", top ? "#" + top.rank + " " + (top.name || "UNKNOWN") : "None in window");
+      factRow(pf, "Top-ranked lead", top ? "#" + top.rank + " " + (top.name || "UNKNOWN") : "None in window");
       box.appendChild(pf);
 
       box.appendChild(el("div", "hint",
@@ -873,6 +918,8 @@
       factRow(cf, "Contrast span", rad.dynamic_range_db != null ? fmt(rad.dynamic_range_db, 2) + " dB" : "n/a");
       factRow(cf, "Look-alikes", String(m.lookalike_polygons_found || 0));
       factRow(cf, "Detector", m.detector === "unet" ? "U-Net" : "dB baseline");
+      var csf = shipsFact(job.ships);
+      if (csf) factRow(cf, "Ships on radar", csf);
       box.appendChild(cf);
 
       box.appendChild(el("div", "hint", clean.detail ||
@@ -881,30 +928,137 @@
     }
 
     var p = polys[0].properties;
-    var head = el("div", "verdict-line");
-    head.appendChild(document.createTextNode("Slick detected, "));
-    head.appendChild(el("span", "qty", fmt(m.oil_area_km2, 2) + " km²"));
-    box.appendChild(head);
+    var st = job.source_test || {};
+    var scene = job.scene || {};
+    var pass = hhmmUTC((job.input || {}).t_sat || scene.t_sat);
+
+    var k = el("div", "finding-k");
+    k.appendChild(document.createTextNode("Radar pass " + pass));
+    var stamp = findingStamp(st);
+    k.appendChild(el("span", "stamp " + stamp[0], stamp[1]));
+    box.appendChild(k);
+
+    var f = el("p", "finding");
+    f.innerHTML = findingSentence(job, m, polys, drift, st) + darkSentence(job.ships);
+    box.appendChild(f);
 
     var facts = el("div", "verdict-facts");
-    factRow(facts, "Largest slick", fmt(p.length_km, 1) + " km × " + fmt(p.area_km2, 2) + " km²");
-    factRow(facts, "Origin", drift ? utc(drift.origin.t).replace(" UTC", "") : "n/a");
-    factRow(facts, "Zone radius", drift ? "± " + fmt(drift.origin.spread_km, 1) + " km" : "n/a");
-    factRow(facts, "Age", drift ? fmt(job.age_hours_proxy, 1) + " h drift proxy" : "n/a");
-    // Four facts, not six. Coast impact lives in the Drift tab where the cone
-    // it describes is; the detector is already named in the header. A finding
-    // panel that repeats what is on screen elsewhere is height the leaderboard
-    // could have used.
+    factRow(facts, "Oil outlined", fmt(m.oil_area_km2, 2) + " km² · " + polys.length +
+      (polys.length === 1 ? " slick" : " slicks"));
+    factRow(facts, "Backtrack origin", drift ? hhmmUTC(drift.origin.t) + " ± " + fmt(drift.origin.spread_km, 1) + " km" : "n/a");
+    factRow(facts, "Oil age", drift ? fmt(job.age_hours_proxy, 1) + " h (drift)" : "n/a");
+    var sf = shipsFact(job.ships);
+    if (sf) factRow(facts, "Ships on radar", sf);
     box.appendChild(facts);
 
-    // No lead block here. The leaderboard sits directly below and its first row
-    // is the lead; printing it twice cost a panel's worth of height and told
-    // the operator nothing the next panel did not.
     if (!top) {
       box.appendChild(el("div", "notice",
         "No vessel passed the spatio-temporal filter for this origin. " +
         "Reporting nothing rather than forcing a culprit."));
     }
+  }
+
+  /* A release window in the words an analyst reads: times, and the date
+     only when it is not the day of the radar pass. */
+  function windowText(w) {
+    if (!w) return "";
+    var pass = String(((state.job || {}).input || {}).t_sat || "").slice(0, 10);
+    var mon = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    function day(iso) { return " on " + Number(iso.slice(8, 10)) + " " + mon[Number(iso.slice(5, 7)) - 1]; }
+    var a = w[0], b = w[1];
+    var sameDay = a.slice(0, 10) === b.slice(0, 10);
+    var txt = a.slice(11, 16) + (sameDay ? "" : day(a)) + " to " + b.slice(11, 16) + " UTC";
+    if (sameDay && a.slice(0, 10) !== pass) txt += day(a);
+    else if (!sameDay && b.slice(0, 10) !== pass) txt += day(b);
+    return txt;
+  }
+
+  function darkSentence(sh) {
+    if (!sh || !sh.ais_checked) return "";
+    var near = (sh.targets || []).filter(function (t) { return !t.ais && t.slick_km != null && t.slick_km <= 5; })
+      .sort(function (a, b) { return a.slick_km - b.slick_km; });
+    if (!near.length) return "";
+    return " A ship on radar with <span class=\"hot\">no AIS</span> was " + fmt(near[0].slick_km, 1) +
+      " km from the slick at the pass" + (near.length > 1 ? ", one of " + near.length : "") + ".";
+  }
+
+  function hhmmUTC(iso) {
+    if (!iso) return "n/a";
+    var d = new Date(String(iso).replace(/(\.\d+)?Z?$/, "Z"));
+    if (isNaN(d)) return String(iso);
+    return String(d.getUTCHours()).padStart(2, "0") + ":" +
+      String(d.getUTCMinutes()).padStart(2, "0") + " UTC " +
+      d.getUTCDate() + " " + ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul",
+      "Aug", "Sep", "Oct", "Nov", "Dec"][d.getUTCMonth()];
+  }
+
+  function esc(t) {
+    return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  function srcName(h) {
+    return h.kind === "vessel" ? esc(h.name || "UNKNOWN") + " (MMSI " + esc(h.mmsi) + ")" : esc(h.name);
+  }
+
+  /* The stamp says how far the finding can be relied on, in the words an
+     analyst would write on a case file. It never says "guilty". */
+  function runsText(x) {
+    var n = x.members || 0;
+    return Math.round((x.support || 0) * n) + " of " + n + " drift runs";
+  }
+
+  function findingStamp(st) {
+    if (!st.available) return ["none", "Drift only"];
+    return {
+      shortlist: ["lead", "Shortlist"],
+      installation: ["lead", "Installation fits"],
+      unexplained: ["none", "Unattributed"],
+      untested: ["none", "Untested"]
+    }[st.verdict] || ["none", "Open"];
+  }
+
+  /* One sentence: what the radar saw, then what the forward release tests say
+     released it, then how much weight that carries. Built only from the job. */
+  function findingSentence(job, m, polys, drift, st) {
+    var s = "<b>" + fmt(m.oil_area_km2, 2) + " km²</b> of oil in " + polys.length +
+      (polys.length === 1 ? " slick. " : " slicks. ");
+    var h = st.hypotheses || [];
+    var best = h[0];
+    var tested = h.length;
+    var need = (st.method || {}).explains_at;
+    if (!st.available) {
+      return s + (drift ? "Drift puts the release near the zone marked on the chart, around " +
+        esc(hhmmUTC(drift.origin.t)) + "." : "No drift reconstruction for this run.");
+    }
+    if (st.verdict === "shortlist") {
+      var sl = st.shortlist || [];
+      s += "Oil released along each candidate's own track was drifted to the pass; " +
+        sl.map(function (v, i) {
+          return "<span class=\"hot\">" + esc(v.name || "MMSI " + v.mmsi) + "</span> (" + fmt(v.fit, 2) + ")";
+        }).join(sl.length > 2 ? ", " : " and ").replace(/, ([^,]*)$/, " and $1") +
+        (sl.length === 1 ? " reproduces it best." : " reproduce it best.") + " Inspect " +
+        (sl.length === 1 ? "it" : "them") + " first; this is a shortlist, not a finding.";
+      var val = st.validation;
+      if (val && val.cases) {
+        s += " In " + val.cases + " known-answer runs on real traffic the ship that released the oil was on the shortlist in " +
+          val.shortlist3 + ".";
+      }
+      if ((st.installations_fitting || []).length) {
+        s += " " + esc(st.installations_fitting[0].name) + " fits as well, as a fixed source.";
+      }
+      return s;
+    }
+    if (st.verdict === "installation") {
+      return s + "No vessel's released oil reaches it; a leak from <span class=\"hot\">" +
+        esc(st.installations_fitting[0].name) + "</span> fits at <b>" + fmt(st.installations_fitting[0].fit, 2) + "</b>.";
+    }
+    if (st.verdict === "unexplained") {
+      return s + "None of the " + tested + " installations and vessels tested reproduces it. " +
+        "The oil is unattributed; the ranked vessels are leads only.";
+    }
+    return s + "No installation or vessel was close enough to test.";
   }
 
   /* One labelled cell in the finding grid. */
@@ -1030,62 +1184,42 @@
     }
     var tl = driftTimeline(job);
     if (tl) box.appendChild(tl);
+    // The reconstruction only: where and when, how sure, where it goes. Model
+    // parameters live in the Method view, the metocean source under Conditions.
+    var coast = d.coast || {};
     var rows = [
-      ["Origin time", utc(d.origin.t)],
-      ["Origin position", fmt(d.origin.lat, 4) + ", " + fmt(d.origin.lon, 4)],
-      ["Zone radius", fmt(d.origin.spread_km, 1) + " km, buffered " + fmt(d.origin.buffer_km, 1) + " km"],
-      ["Zone area", fmt(d.origin.area_km2, 1) + " km2"],
-      ["Hours back", fmt(d.origin.index_hours_back, 0) + " h"],
-      ["Age proxy", fmt(job.age_hours_proxy, 1) + " h"],
-      ["Wind factor", fmt(d.physics.alpha_wind, 3) + " of 10 m wind"],
-      ["Deflection", fmt(d.physics.deflection_deg, 0) + " deg right"],
-      ["Particles", d.physics.n_particles],
-      ["Forecast spread", fmt(d.forecast_hourly[d.forecast_hourly.length - 1].spread_km, 1) + " km"]
+      ["Release time", utc(d.origin.t)],
+      ["Release position", fmt(d.origin.lat, 4) + ", " + fmt(d.origin.lon, 4)],
+      ["Zone radius", fmt(d.origin.spread_km, 1) + " km"],
+      ["Oil age (drift)", fmt(job.age_hours_proxy, 1) + " h"],
+      ["Forecast spread", fmt(d.forecast_hourly[d.forecast_hourly.length - 1].spread_km, 1) + " km"],
+      ["Coast", coast.available === false ? "not checked"
+        : (coast.beached_fraction > 0
+          ? Math.round(coast.beached_fraction * 100) + "% ashore, first at +" + fmt(coast.first_beaching_hours, 0) + " h"
+          : (coast.coast_flag ? "forecast reaches land" : "stays offshore"))]
     ];
+    // Backward particles stranded by the release time mean the oil traces
+    // back to the shoreline: a coastal seep, outfall or harbour, not open sea.
+    if (coast.backtrack_at_shore_fraction > 0.25) {
+      rows.push(["Backtrack", Math.round(coast.backtrack_at_shore_fraction * 100) + "% reaches the shore"]);
+    }
     rows.forEach(function (r) {
       var line = el("div", "kv");
       line.appendChild(el("span", "k", r[0]));
-      line.appendChild(el("span", "v", r[1]));
+      var v = el("span", "v", r[1]);
+      if (r[0] === "Coast" && coast.coast_flag) v.style.color = "var(--warn)";
+      line.appendChild(v);
       box.appendChild(line);
     });
 
-    var coast = d.coast || {};
-    var coastLine = el("div", "kv");
-    coastLine.appendChild(el("span", "k", "Coast impact"));
-    coastLine.appendChild(el("span", "v",
-      coast.available === false ? "no land mask"
-        : (coast.coast_flag ? "REACHES LAND" : "stays offshore")));
-    if (coast.coast_flag) coastLine.querySelector(".v").style.color = "var(--warn)";
-    box.appendChild(coastLine);
-
-    var bb = d.threatened_bbox;
-    if (bb) {
-      var bbLine = el("div", "kv");
-      bbLine.appendChild(el("span", "k", "Threatened box"));
-      bbLine.appendChild(el("span", "v",
-        fmt(bb.south, 2) + " to " + fmt(bb.north, 2) + " N, " +
-        fmt(bb.west, 2) + " to " + fmt(bb.east, 2) + " E"));
-      box.appendChild(bbLine);
-    }
-
-    box.appendChild(el("div", "hint",
-      "Age is the drift time from the estimated origin to the acquisition. " +
-      "It is a physical proxy, not a laboratory weathering age."));
-
+    // Only a metocean problem earns space here: a constant stand-in field, or
+    // wind with no currents. A healthy cube is described under Conditions.
     var mo = d.metocean || {};
-    var moText = (mo.synthetic ? "NO CACHED METOCEAN. " : "Metocean: ") + (mo.source || "");
-    if (mo.t_start) {
-      moText += "  " + mo.t_start.substring(0, 16) + " to " + mo.t_end.substring(0, 16);
+    if (mo.synthetic) {
+      box.appendChild(el("div", "notice bad", "No cached metocean for this scene: the drift used a constant stand-in field."));
+    } else if (mo.has_currents === false) {
+      box.appendChild(el("div", "notice", "Wind only: the cached cube has no ocean currents for this basin."));
     }
-    if (mo.has_currents === false && !mo.synthetic) {
-      moText += "  |  wind only: no current data for this basin";
-    } else if (mo.mean_current_ms !== undefined) {
-      moText += "  |  mean current " + fmt(mo.mean_current_ms, 2) + " m/s, wind " +
-        fmt(mo.mean_wind_ms, 1) + " m/s";
-    }
-    box.appendChild(el("div",
-      mo.synthetic ? "notice bad" : (mo.has_currents === false ? "notice" : "notice ok"),
-      moText));
   }
 
   function renderSuspects(job) {
@@ -1095,16 +1229,22 @@
     var list = attr.suspects || [];
     state.suspects = list;
     $("susp-count").textContent = list.length ? list.length + " ranked" : "";
+    $("susp-count").title = (state.job && (state.job.attribution || {}).ranked_by) ?
+      "Ordered by " + state.job.attribution.ranked_by : "";
 
     if (!list.length) {
       var b = el("div", "body");
-      b.appendChild(el("div", "notice",
-        "No vessel passed the spatio-temporal filter for this origin zone and window. " +
-        "The pipeline reports nothing rather than inventing a culprit."));
+      var clean = job.status === "clean_water" || job.status === "no_oil_detected";
+      b.appendChild(el("div", "notice", clean
+        ? "Attribution did not run: there is no slick on this pass, so there is nothing to trace back to a vessel."
+        : "No vessel passed the spatio-temporal filter for this origin zone and window. " +
+          "The pipeline reports nothing rather than inventing a culprit."));
       if (attr.funnel) {
         b.appendChild(el("div", "hint",
           "Considered " + attr.funnel.considered_vessels + " vessels in the box, " +
-          "dropped " + attr.funnel.dropped_outside_radius + " outside the radius."));
+          "dropped " + attr.funnel.dropped_outside_radius + " outside the radius" +
+          (attr.funnel.dropped_berthed_away ? " and " + attr.funnel.dropped_berthed_away +
+            " berthed away from the oil" : "") + "."));
       }
       wrap.appendChild(b);
       return;
@@ -1116,7 +1256,7 @@
   /* One ranked vessel, rendered the same way wherever it appears. */
   function suspectCard(s) {
     {
-      var card = el("div", "suspect" + (s.rank === 1 ? " r1" : ""));
+      var card = el("div", "suspect" + (s.rank === 1 ? " r1" : "") + (supported(s) ? " supported" : ""));
       card.dataset.mmsi = s.mmsi;
 
       var top = el("div", "top");
@@ -1136,6 +1276,18 @@
       card.appendChild(el("div", "meta",
         "MMSI " + s.mmsi + " · " + s.type.replace(/_/g, " ") +
         " · " + dist + (when ? " · " + when : "")));
+
+      // Which release this vessel was matched under, and what the forward
+      // test made of it. A rank without a fit is a lead; a fit is evidence.
+      var chips = el("div", "chips");
+      chips.appendChild(el("span", "hyp", d.hypothesis === "drift_corridor" ? "with the drifting oil" : "near the origin zone"));
+      var st = (state.job && state.job.source_test) || {};
+      var fw = (st.hypotheses || []).filter(function (h) { return h.kind === "vessel" && String(h.mmsi) === String(s.mmsi); })[0];
+      if (fw) {
+        var fc = fitClass(fw, st);
+        chips.appendChild(el("span", "hyp" + (fc ? " fwd-" + fc : ""), "forward fit " + fmt(fw.fit, 2)));
+      }
+      card.appendChild(chips);
 
       // One bar, two numbers. Solid to the ranked score; a hairline continues to
       // where the evidence alone would have put it. The gap is how much of the
@@ -1189,8 +1341,11 @@
       [
         ["closest approach", utc(s.detail.closest_approach_utc)],
         ["at", fmt(s.detail.closest_lat, 4) + ", " + fmt(s.detail.closest_lon, 4)],
-        ["course vs drift", fmt(s.detail.trajectory.course_deg, 0) + " vs " +
-          fmt(s.detail.trajectory.drift_bearing_deg, 0) + " deg"],
+        s.detail.trajectory.against === "slick_axis"
+          ? ["course vs slick axis", fmt(s.detail.trajectory.course_deg, 0) + " vs " +
+             fmt(s.detail.trajectory.slick_axis_deg, 0) + " deg"]
+          : ["course vs drift", fmt(s.detail.trajectory.course_deg, 0) + " vs " +
+             fmt(s.detail.trajectory.drift_bearing_deg, 0) + " deg"],
         ["SOG at closest", fmt(s.detail.behavior.sog_at_closest_kn, 1) + " kn"],
         ["reported fixes", s.detail.raw_positions],
         ["gaps", s.detail.gaps.length]
@@ -1213,11 +1368,176 @@
     }
   }
 
+  var SHIP_IC = '<svg class="src-ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 10.5h12l-2 3H4z" fill="currentColor"/><path d="M5 10.5V6h5l2 4.5" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
+  var PLAT_IC = '<svg class="src-ic" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.2" fill="currentColor"/></svg>';
+
+  function fitClass(h, st) {
+    var mth = st.method || {};
+    if (h.fit >= (mth.explains_at || 0.5)) return "fits";
+    if (h.fit >= (mth.partial_at || 0.25)) return "partial";
+    return "";
+  }
+
+  /* Every release hypothesis that was drifted forward, best fit first. The bar
+     carries a tick at the fit needed, so "how close" is read, not computed. */
+  function renderSourceTest(job) {
+    var box = $("source-test");
+    if (!box) return;
+    box.innerHTML = "";
+    var st = job.source_test || {};
+    var cnt = $("src-count");
+    if (!st.available) {
+      if (cnt) cnt.textContent = "";
+      box.appendChild(el("p", "hint", st.reason ||
+        "Runs once a slick is outlined: each nearby installation and ranked vessel is released forward and compared with it."));
+      return;
+    }
+    var h = st.hypotheses || [];
+    if (cnt) cnt.textContent = h.length + " tested";
+    var need = (st.method || {}).explains_at || 0.5;
+    var list = el("div", "src-list");
+    // Three rows by default: the best fits are the ones an analyst reads, and
+    // the rail has to leave room for the ranked vessels below.
+    var SHOW = 3;
+    h.forEach(function (x, i) {
+      var cls = fitClass(x, st);
+      var row = el("div", "src-row" + (cls ? " " + cls : ""));
+      if (x.kind === "vessel") row.dataset.mmsi = x.mmsi;
+      var ic = el("span");
+      ic.innerHTML = x.kind === "vessel" ? SHIP_IC : PLAT_IC;
+      row.appendChild(ic.firstChild);
+      row.appendChild(el("span", "src-nm", x.kind === "vessel" ? (x.name || "UNKNOWN") : x.name));
+      row.appendChild(el("span", "src-fit", fmt(x.fit, 2)));
+      var bar = el("div", "src-bar");
+      bar.style.setProperty("--fit", Math.max(0, Math.min(1, x.fit)) * 100 + "%");
+      bar.style.setProperty("--bar-at", need * 100 + "%");
+      bar.appendChild(el("i"));
+      bar.appendChild(el("u"));
+      row.appendChild(bar);
+      var sub = x.window
+        ? windowText(x.window) + " · " + runsText(x)
+        : (x.present_at_pass ? "on the slick at the pass" : "does not reach the slick");
+      if (x.kind === "installation" && x.distance_km != null) sub = fmt(x.distance_km, 1) + " km · " + sub;
+      if (x.structures > 1) sub = x.structures + " structures · " + sub;
+      row.appendChild(el("div", "src-sub", sub));
+      if (x.kind === "vessel") row.addEventListener("click", function () { selectSuspect(x.mmsi); });
+      if (i >= SHOW) row.hidden = true;
+      list.appendChild(row);
+    });
+    box.appendChild(list);
+    if (h.length > SHOW) {
+      var more = el("button", "src-more", "Show all " + h.length + " tested");
+      more.addEventListener("click", function () {
+        var open = more.dataset.open === "1";
+        Array.prototype.slice.call(list.children, SHOW).forEach(function (r) { r.hidden = open; });
+        more.dataset.open = open ? "0" : "1";
+        more.textContent = open ? "Show all " + h.length + " tested" : "Show the best " + SHOW;
+      });
+      box.appendChild(more);
+    }
+    // The method sentence rides on the section heading instead of taking rail
+    // height; the Method view states it in full.
+    if (cnt) cnt.title = "Each source is released forward " + ((st.method || {}).hours_tested || 24) +
+      " h through the recorded wind and currents, as " + ((st.method || {}).members || "") +
+      " runs with the wind and currents perturbed. Fit balances how much of the slick each run covers " +
+      "against how much of its oil lands on it, averaged over the runs. The " +
+      ((st.method || {}).shortlist || 3) + " vessels that fit best form the shortlist; the tick marks " +
+      fmt(need, 2) + ", where a single run counts as reproducing the slick.";
+  }
+
+  /* Radar targets: a quiet dot where AIS explains the echo, an ochre hollow
+     diamond where it does not. Where the sea has no real AIS the diamond is
+     neutral, because nothing was compared. */
+  function shipTip(t, checked) {
+    if (t.ais) return "On radar and on AIS: " + esc(t.ais.name || ("MMSI " + t.ais.mmsi)) +
+      " (" + esc(String(t.ais.type).replace(/_/g, " ")) + "), echo " + fmt(t.ais.distance_km, 2) + " km from its AIS fix";
+    return (checked ? "On radar with no AIS: a vessel with its transponder off, or a structure no map records"
+                    : "On radar. No real AIS for this sea to compare it with") +
+      (t.slick_km != null ? ". " + fmt(t.slick_km, 1) + " km from the slick" : "") +
+      ". About " + t.extent_m + " m, +" + fmt(t.contrast_db, 0) + " dB over the sea.";
+  }
+
+  function drawShips(job) {
+    var sh = job.ships || {};
+    if (!sh.available) return;
+    (sh.targets || []).forEach(function (t) {
+      var cls = t.ais ? "rship ais" : (sh.ais_checked ? "rship dark" : "rship unchecked");
+      L.marker([t.lat, t.lon], {
+        icon: L.divIcon({ className: "", html: '<div class="' + cls + '"></div>', iconSize: [12, 12], iconAnchor: [6, 6] }),
+        keyboard: false
+      }).bindTooltip(shipTip(t, sh.ais_checked), { direction: "top" }).addTo(layerGroup.ships);
+    });
+  }
+
+  function shipsFact(sh) {
+    if (!sh || !sh.available) return null;
+    var n = (sh.targets || []).length;
+    if (!n) return "none detected";
+    return n + (sh.ais_checked ? " · " + sh.radar_only + " without AIS" : " · AIS not available here");
+  }
+
+  function renderShips(job) {
+    var box = $("ships");
+    if (!box) return;
+    box.innerHTML = "";
+    var sh = job.ships || {};
+    var cnt = $("ships-count");
+    if (cnt) cnt.textContent = sh.available ? (sh.targets || []).length + " on radar" : "";
+    if (!sh.available) { box.appendChild(el("p", "hint", sh.reason || "The ship survey runs with each analysis.")); return; }
+    if (!(sh.targets || []).length) { box.appendChild(el("p", "hint", "No ship-sized echoes on this pass.")); return; }
+    var list = (sh.targets || []).slice().sort(function (a, b) {
+      return (a.ais ? 1 : 0) - (b.ais ? 1 : 0) || (a.slick_km || 1e9) - (b.slick_km || 1e9);
+    });
+    var wrap = el("div", "src-list");
+    list.forEach(function (t) {
+      var row = el("div", "src-row" + (!t.ais && sh.ais_checked ? " partial" : ""));
+      var ic = el("span", "rship " + (t.ais ? "ais" : (sh.ais_checked ? "dark" : "unchecked")));
+      row.appendChild(ic);
+      row.appendChild(el("span", "src-nm", t.ais ? (t.ais.name || "MMSI " + t.ais.mmsi) : (sh.ais_checked ? "No AIS" : "Unchecked")));
+      row.appendChild(el("span", "src-fit", t.extent_m + " m"));
+      row.appendChild(el("div", "src-sub",
+        (t.slick_km != null ? fmt(t.slick_km, 1) + " km from the slick · " : "") + "+" + fmt(t.contrast_db, 0) + " dB"));
+      row.addEventListener("click", function () { map.setView([t.lat, t.lon], Math.max(map.getZoom(), 13)); });
+      wrap.appendChild(row);
+    });
+    box.appendChild(wrap);
+    box.appendChild(el("p", "src-k", sh.ais_checked
+      ? "Bright echoes compared with AIS at the moment of the pass. " + sh.matched + " matched, " + sh.radar_only +
+        " radar-only, " + sh.on_known_platforms + " on known platforms left out."
+      : "This sea has no real AIS, so the echoes are listed but not compared."));
+  }
+
+  function drawSources(job) {
+    var st = job.source_test || {};
+    if (!st.available) return;
+    (st.hypotheses || []).forEach(function (h) {
+      var cls = fitClass(h, st);
+      if (h.kind === "installation") {
+        var icon = L.divIcon({ className: "", html: '<div class="plat ' + cls + '"></div>', iconSize: [12, 12], iconAnchor: [6, 6] });
+        var mk = L.marker([h.lat, h.lon], { icon: icon, keyboard: false })
+          .bindPopup("<b>" + esc(h.name) + "</b><br>" + esc(h.source === "documented" ? "documented release point" : "OpenStreetMap platform") +
+            "<br>fit " + fmt(h.fit, 2) + " · covers " + Math.round(h.coverage * 100) + "%" +
+            (h.reference ? '<br><span class="small">' + esc(h.reference) + "</span>" : ""));
+        if (cls) mk.bindTooltip(esc(h.name) + " · " + fmt(h.fit, 2), { permanent: true, direction: "right", className: "plat-label", offset: [8, 0] });
+        mk.addTo(layerGroup.sources);
+      } else if (cls && h.release_points && h.release_points.length > 1) {
+        L.polyline(h.release_points.map(function (q) { return [q[1], q[0]]; }), {
+          color: cls === "fits" ? MAPC.flag : MAPC.warn, weight: 5, opacity: 0.85,
+          dashArray: "1,9", lineCap: "round"
+        }).bindPopup("<b>Hypothesised discharge</b><br>" + srcName(h) + "<br>" +
+          windowText(h.window) + " along its AIS track<br>fit " + fmt(h.fit, 2))
+          .addTo(layerGroup.sources);
+      }
+    });
+  }
+
   function selectSuspect(mmsi) {
     state.selected = state.selected === mmsi ? null : mmsi;
     Array.prototype.forEach.call(document.querySelectorAll(".suspect"), function (n) {
       n.classList.toggle("sel", String(n.dataset.mmsi) === String(state.selected));
     });
+    drawTracks(state.suspects);
+    if (state.frames && state.frames.length) renderFrame();
     if (!state.selected) return;
     var s = state.suspects.filter(function (x) { return String(x.mmsi) === String(mmsi); })[0];
     if (!s) return;
@@ -1268,22 +1588,31 @@
     box.innerHTML = "";
     // Each row carries the colour it controls, so the layer list is also the
     // map legend and there is only one of them to read.
+    // On by default: the radar, the oil, where it came from, where it goes, the
+    // leading vessels and the source tests. The rest is one click away.
     var defs = [
       ["optical", "Optical (S2)", false, null],
       ["sar", "SAR image", true, null],
-      ["mask", "Class mask", true, null],
+      ["mask", "Class mask", false, null],
       ["oil", "Oil polygons", true, "var(--oil)"],
-      ["lookalike", "Look-alikes", true, "dash:var(--lookalike)"],
+      ["lookalike", "Look-alikes", false, "dash:var(--lookalike)"],
       ["hindcast", "Backtrack", true, "dash:var(--hind)"],
-      ["cone_back", "Hindcast cone", true, "var(--hind)"],
-      ["origin", "Release zone", true, "var(--accent)"],
+      ["cone_back", "Hindcast cone", false, "var(--hind)"],
+      ["origin", "Release zone", true, "var(--hind)"],
       ["forecast", "Forecast track", true, "dash:var(--fore)"],
-      ["cone_fwd", "Forecast cone", true, "var(--fore)"],
-      ["tracks", "AIS tracks", true, null],
-      ["vessels", "Vessel marks", true, "var(--rank1)"]
+      ["cone_fwd", "Forecast cone", false, "var(--fore)"],
+      ["tracks", "Vessel tracks (top 3)", true, null],
+      ["sources", "Source tests", true, "dash:var(--flag)"],
+      ["ships", "Ships on radar", true, "var(--warn)"],
+      ["vessels", "Vessel positions", true, "var(--rank1)"]
     ];
     defs.forEach(function (d) {
       var lbl = el("label");
+      lbl.dataset.layer = d[0];
+      if (d[0] === "optical" && state.opticalNote) lbl.title = state.opticalNote;
+      if (map && layerGroup[d[0]]) {
+        if (d[2]) map.addLayer(layerGroup[d[0]]); else map.removeLayer(layerGroup[d[0]]);
+      }
       var cb = document.createElement("input");
       cb.type = "checkbox";
       cb.checked = d[2];
@@ -1304,28 +1633,39 @@
     });
   }
 
+  var FACTOR_NAMES = { prox: "Proximity", time: "Timing", beh: "Behaviour", type: "Vessel type", traj: "Trajectory" };
+
+  /* Weights as a short list; the exact rules the server publishes fold away
+     under one heading, so the view reads first and audits second. */
   function renderWeights(scoring) {
     var box = $("weights");
     box.innerHTML = "";
-    var w = scoring.weights;
-    Object.keys(w).forEach(function (k) {
+    var w = scoring.weights || {};
+    Object.keys(w).sort(function (x, y) { return w[y] - w[x]; }).forEach(function (k) {
       var line = el("div", "kv");
-      line.appendChild(el("span", "k", k));
-      line.appendChild(el("span", "v", fmt(w[k], 2)));
+      line.appendChild(el("span", "k", FACTOR_NAMES[k] || k));
+      line.appendChild(el("span", "v", Math.round(w[k] * 100) + "%"));
       box.appendChild(line);
     });
-    box.appendChild(el("div", "hint", scoring.formula));
-    // Every rule the server publishes is rendered, so adding one on the server
-    // never leaves the sidebar quietly out of date.
-    [["proximity", scoring.proximity],
-     ["time", scoring.time],
-     ["trajectory", scoring.trajectory],
+    box.appendChild(el("p", "hint", "Score = weighted sum × track confidence. A lead, not a finding, " +
+      "until the source test supports it."));
+    var more = el("details", "settings");
+    more.appendChild(el("summary", null, "How each factor is scored"));
+    [["Formula", scoring.formula],
+     ["Proximity", scoring.proximity],
+     ["Timing", scoring.time],
+     ["Trajectory", scoring.trajectory],
+     ["Release hypotheses", scoring.hypotheses],
      ["AIS gap", (scoring.behavior || {}).ais_gap],
-     ["sparse gap", (scoring.behavior || {}).sparse_gap],
-     ["confidence", scoring.confidence]].forEach(function (row) {
+     ["Sparse gap", (scoring.behavior || {}).sparse_gap],
+     ["Track confidence", scoring.confidence]].forEach(function (row) {
       if (!row[1]) return;
-      box.appendChild(el("div", "hint", row[0] + ": " + row[1]));
+      var h = el("p", "hint");
+      h.appendChild(el("b", null, row[0] + ". "));
+      h.appendChild(document.createTextNode(row[1]));
+      more.appendChild(h);
     });
+    box.appendChild(more);
   }
 
   // ------------------------------------------------------------------ flow
@@ -1345,17 +1685,28 @@
       pts.push([det.sar_bounds[1], det.sar_bounds[0]]);
       pts.push([det.sar_bounds[3], det.sar_bounds[2]]);
     }
-    if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.08));
+    if (pts.length) fitWhenSized(L.latLngBounds(pts).pad(0.08), 0);
+  }
+
+  /* Same race fitScene guards against: a run opened from a link is framed
+     before the grid has laid the map out, and fitBounds on a near-zero
+     container returns the maximum zoom. Wait for a real size first. */
+  function fitWhenSized(bounds, attempt) {
+    map.invalidateSize({ animate: false });
+    var size = map.getSize();
+    if ((size.x < 80 || size.y < 80) && attempt < 20) {
+      setTimeout(function () { fitWhenSized(bounds, attempt + 1); }, 50);
+      return;
+    }
+    map.fitBounds(bounds, { animate: false });
   }
 
   /* Everything the new rails show is derived from the job document, so one
      call site keeps them all in step. */
   function renderCase(job) {
     renderCaseHead(job);
-    renderQuickStats(job);
     renderMetocean(job);
     renderSpreadChart(job);
-    renderEvidence(job);
     renderVesselList(job);
   }
 
@@ -1367,8 +1718,12 @@
     drawDetection(job);
     drawDrift(job);
     drawTracks(state.suspects);
+    drawSources(job);
+    drawShips(job);
     renderVerdict(job);
     renderDetection(job);
+    renderSourceTest(job);
+    renderShips(job);
     renderOrigin(job);
     renderSuspects(job);
     renderTrace(job);
@@ -1389,7 +1744,7 @@
      flight and how long the run has taken so far. */
   function watchProgress(jobId, t0) {
     var steps = ["DETECT", "CHAR", "EO", "RENDER", "METOCEAN", "HINDCAST",
-                 "FORECAST", "COAST", "AGE_PROXY", "AIS", "FILTER", "SCORE"];
+                 "FORECAST", "COAST", "AGE_PROXY", "AIS", "FILTER", "SCORE", "SOURCE", "SHIPS"];
     return setInterval(function () {
       var secs = Math.round((performance.now() - t0) / 1000);
       fetch("/api/jobs/" + jobId + "/progress", { cache: "no-store" })
@@ -1409,6 +1764,25 @@
     }, 700);
   }
 
+  /* Only settings that hold a number are sent; an empty box means the
+     server's own default, so the defaults live in one place, app/config.py. */
+  function withSettings(body, fields) {
+    Object.keys(fields).forEach(function (k) {
+      var v = Number(($(fields[k]) || {}).value);
+      if (($(fields[k]) || {}).value !== "" && isFinite(v)) body[k] = v;
+    });
+    return body;
+  }
+
+  function fillSettings(resp) {
+    var cfg = (resp && resp.config) || resp;
+    [["hind", "hindcast_h"], ["fore", "forecast_h"], ["radius", "search_radius_km"],
+     ["window", "origin_window_h"]].forEach(function (d) {
+      var box = $(d[0]);
+      if (box && cfg && cfg[d[1]] != null && box.value === "") box.value = cfg[d[1]];
+    });
+  }
+
   function runPipeline() {
     if (!state.scene) return;
     $("busy").classList.add("on");
@@ -1419,14 +1793,11 @@
                 Math.random().toString(36).slice(2, 8);
     var poll = watchProgress(jobId, t0);
 
-    postJSON("/api/run", {
+    postJSON("/api/run", withSettings({
       scene_id: state.scene.id,
-      job_id: jobId,
-      hindcast_hours: Number($("hind").value),
-      forecast_hours: Number($("fore").value),
-      search_radius_km: Number($("radius").value),
-      origin_window_hours: Number($("window").value)
-    }).then(function (job) {
+      job_id: jobId
+    }, { hindcast_hours: "hind", forecast_hours: "fore",
+         search_radius_km: "radius", origin_window_hours: "window" })).then(function (job) {
       showJob(job);
       console.log("pipeline finished in " + Math.round(performance.now() - t0) + " ms", job);
     }).catch(function (err) {
@@ -1445,32 +1816,29 @@
   // map -- coast, harbour, rigs, wakes -- and never an input to detection.
   function loadOptical(scene) {
     layerGroup.optical.clearLayers();
-    var note = $("optical-note");
-    if (note) { note.textContent = ""; note.className = "muted"; }
+    setOpticalNote("");
     if (!scene) return;
 
     fetch("/data/optical/" + encodeURIComponent(scene.id) + ".json", { cache: "no-store" })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (m) {
-        if (!note) return;
-        if (!m) {
-          note.textContent = "Optical: not cached. Run scripts/fetch_sentinel2_chip.py.";
-          return;
-        }
-        if (m.status !== "ok") {
-          note.textContent = "Optical: " + (m.reason || m.status) +
-            ". Open ocean is usually cloud, which is why detection runs on radar.";
-          return;
-        }
+        if (!m) { setOpticalNote("No optical chip cached for this scene."); return; }
+        if (m.status !== "ok") { setOpticalNote("Optical: " + (m.reason || m.status) + "."); return; }
         L.imageOverlay(m.url, m.bounds,
           { opacity: 0.95, interactive: false, pane: "opticalPane" })
           .addTo(layerGroup.optical);
-        note.textContent = "Optical: Sentinel-2 " + utc(m.acquired) + ", " +
-          m.offset_label + ", " + m.cloud_percent + "% obscured. Context only.";
+        setOpticalNote("Sentinel-2 " + utc(m.acquired) + ", " + m.offset_label + ", " +
+          m.cloud_percent + "% obscured. Context only, never used for detection.");
       })
-      .catch(function () {
-        if (note) note.textContent = "Optical: unavailable.";
-      });
+      .catch(function () { setOpticalNote("Optical chip unavailable."); });
+  }
+
+  /* The optical chip's time offset and cloud cover belong next to the switch
+     that shows it, so they ride on the layer's own label. */
+  function setOpticalNote(text) {
+    state.opticalNote = text;
+    var lbl = document.querySelector('#layers label[data-layer="optical"]');
+    if (lbl) lbl.title = text;
   }
 
   // Switching scene used to leave the whole previous run on screen: the old
@@ -1479,7 +1847,7 @@
   // sea. The panels said one thing and the map showed another, which is worse
   // than showing nothing. Everything a run produced is cleared back to the
   // documented empty state; the scene's own optical chip is reloaded by
-  // renderSceneInfo immediately afterwards.
+  // loadOptical immediately afterwards.
   function resetRun() {
     stop();
     state.job = null;
@@ -1542,23 +1910,6 @@
     });
   }
 
-  function renderSceneInfo(scene) {
-    var box = $("scene-info");
-    box.innerHTML = "";
-    if (!scene) { box.textContent = "No scenes indexed."; return; }
-    box.appendChild(el("div", null, "Acquired " + utc(scene.t_sat)));
-    box.appendChild(el("div", null, "Bounds " + scene.bounds.map(function (v) {
-      return v.toFixed(3);
-    }).join(", ")));
-    box.appendChild(el("div", null, "CRS " + scene.crs + "  |  AIS " +
-      (scene.ais_mode === "real" ? "real MarineCadastre" : "simulated traffic")));
-    if (scene.source) box.appendChild(el("div", null, scene.source));
-    if (scene.notes) box.appendChild(el("div", "muted", scene.notes));
-    var on = el("div", "muted", "");
-    on.id = "optical-note";
-    box.appendChild(on);
-    loadOptical(scene);
-  }
 
   /* ---------------------------------------------------------------- theme
      Two themes, one stored preference, applied before first paint by a stub in
@@ -1568,18 +1919,20 @@
   function applyTheme(mode) {
     document.documentElement.dataset.theme = mode;
     try {
-      localStorage.setItem("tidetrail-theme", mode);
-      localStorage.setItem("tidetrace-theme", mode);
+      localStorage.setItem("tidetrail-theme-v2", mode);
     } catch (e) { /* private mode */ }
     var b = $("theme");
     if (b) {
-      b.title = mode === "dark" ? "Switch to light theme" : "Switch to dark theme";
+      b.title = mode === "dark" ? "Switch to chart day" : "Switch to chart night";
       b.setAttribute("aria-label", b.title);
     }
-    // The chart keeps one palette in both themes. Its ground is imagery and its
-    // job is to make a slick legible; a light-theme variant meant near-white
-    // continents against a dark ocean, which reads as an inverted map rather
-    // than as a chart. Nothing to repaint, so nothing is repainted.
+    // The canvas chart and every vector layer take their colours from the
+    // stylesheet, so a theme change repaints them from the same tokens.
+    refreshMapColors();
+    if (map) {
+      redrawChartBase();
+      if (state.job) showJob(state.job);
+    }
   }
 
   /* Either rail folds away so the chart can have the width. The choice is
@@ -1620,9 +1973,9 @@
   function initTheme() {
     var stored = null;
     try {
-      stored = localStorage.getItem("tidetrail-theme") || localStorage.getItem("tidetrace-theme");
+      stored = localStorage.getItem("tidetrail-theme-v2");
     } catch (e) { /* ignore */ }
-    applyTheme(stored === "light" ? "light" : "dark");
+    applyTheme(stored === "dark" ? "dark" : "light");
     var b = $("theme");
     if (b) {
       b.addEventListener("click", function () {
@@ -1639,6 +1992,7 @@
   function initNav() {
     var links = Array.prototype.slice.call(document.querySelectorAll(".navlink"));
     function select(view) {
+      if (!document.querySelector('.view[data-view="' + view + '"]')) view = "investigate";
       links.forEach(function (l) {
         l.setAttribute("aria-selected", l.dataset.view === view ? "true" : "false");
       });
@@ -1684,21 +2038,19 @@
 
   /* --------------------------------------------------------- case header */
   function renderCaseHead(job) {
-    var t = $("inc-title"), meta = $("inc-meta"), co = $("inc-coords");
+    var t = $("inc-title"), meta = $("inc-meta");
     if (!t) return;
     if (!job) {
       t.textContent = "No run yet";
       meta.textContent = "Pick a scene on the left and run the analysis.";
-      co.textContent = "-";
       return;
     }
     if (job.mode === "operator_probe") {
       var inp = job.input || {};
       t.textContent = "PROBE-" + (job.job_id || "").slice(-8).toUpperCase();
       t.title = "Job " + (job.job_id || "");
-      meta.textContent = "Ad-hoc Spill Probe  ·  Real Metocean Drift & AIS Attribution";
-      co.textContent = fmt(Math.abs(inp.lat), 4) + "° " + (inp.lat >= 0 ? "N" : "S") + ", " +
-                       fmt(Math.abs(inp.lon), 4) + "° " + (inp.lon >= 0 ? "E" : "W");
+      meta.textContent = "Probe at " + fmt(Math.abs(inp.lat), 4) + "° " + (inp.lat >= 0 ? "N" : "S") + ", " +
+        fmt(Math.abs(inp.lon), 4) + "° " + (inp.lon >= 0 ? "E" : "W") + "  ·  drift and AIS only, no detection";
       return;
     }
 
@@ -1711,32 +2063,12 @@
     t.textContent = caseRef(job);
     t.title = "Job " + (job.job_id || "");
 
-    var first = (polys[0] || {}).properties;
     meta.textContent = [
       "Radar pass " + utc(scene.t_sat || job.created),
-      "Sensor " + (scene.source ? scene.source.split(" via ")[0] : "Sentinel-1"),
-      "Detector " + (m.detector === "unet" ? "U-Net" : "dB baseline"),
-      first ? "Confidence " + fmt(first.confidence, 2) : null
+      scene.source ? scene.source.split(" via ")[0] : null
     ].filter(Boolean).join("  ·  ");
-
-    var lat = first ? first.centroid_lat : (scene.centroid ? scene.centroid[1] : null);
-    var lon = first ? first.centroid_lon : (scene.centroid ? scene.centroid[0] : null);
-    co.textContent = lat == null ? "-"
-      : fmt(Math.abs(lat), 4) + "° " + (lat >= 0 ? "N" : "S") + ", " +
-        fmt(Math.abs(lon), 4) + "° " + (lon >= 0 ? "E" : "W");
   }
 
-  /* --------------------------------------------------------- run summary */
-  function renderQuickStats(job) {
-    var det = (job && job.detection) || {};
-    var m = det.metrics || {};
-    var sus = ((job && job.attribution) || {}).suspects || [];
-    var set = function (id, v) { var n = $(id); if (n) n.textContent = v; };
-    set("qs-polys", job ? String((det.polygons || []).length) : "-");
-    set("qs-area", job ? fmt(m.oil_area_km2, 2) : "-");
-    set("qs-vessels", job ? String(sus.length) : "-");
-    set("qs-age", job && job.age_hours_proxy != null ? fmt(job.age_hours_proxy, 1) : "-");
-  }
 
   /* ------------------------------------------------- environmental panel
      Wind and current are the two fields the drift model actually integrates,
@@ -1872,7 +2204,7 @@
   function driftTimeline(job) {
     var d = (job && job.drift) || {};
     if (!d.origin) return null;
-    var tObs = (job.scene || {}).t_sat || job.created;
+    var tObs = (job.scene || {}).t_sat || (job.input || {}).t_sat || job.created;
     var back = (job.input || {}).hindcast_hours || 48;
     var fwd = (job.input || {}).forecast_hours || 36;
 
@@ -1895,77 +2227,8 @@
     return ul;
   }
 
-  /* ------------------------------------------------------ evidence summary */
-  function renderEvidence(job) {
-    var box = $("evidence");
-    if (!box) return;
-    box.innerHTML = "";
-    if (!job) {
-      box.appendChild(el("p", "hint", "Counts of what a finding rests on."));
-      return;
-    }
-    var det = job.detection || {};
-    var funnel = (job.attribution || {}).funnel || {};
-    var rows = [
-      ["Oil polygons", (det.polygons || []).length],
-      ["Look-alikes excluded", (det.lookalikes || []).length],
-      ["Optical chips compared", (det.eo && det.eo.available) ? 1 : 0],
-      ["Vessels in the box", funnel.considered_vessels != null ? funnel.considered_vessels : "-"],
-      ["Passed the filter", funnel.kept_vessels != null ? funnel.kept_vessels : "-"],
-      ["Ensemble members", (job.config || {}).ensemble_n || "-"],
-      ["Pipeline steps", (job.trace || []).length]
-    ];
-    rows.forEach(function (row) {
-      var r = el("div", "ev-row");
-      r.appendChild(el("span", "k", row[0]));
-      r.appendChild(el("span", "v", String(row[1])));
-      box.appendChild(r);
-    });
-  }
 
-  /* ------------------------------------------------ data sources, system */
-  function renderSources(h) {
-    var box = $("sources");
-    if (!box) return;
-    box.innerHTML = "";
-    [
-      ["Detector", h.model_loaded ? "U-Net" : "dB baseline", !h.model_loaded],
-      ["Metocean cubes", String(h.metocean_scenes), !h.metocean_scenes],
-      ["AIS rows", Number(h.ais_rows).toLocaleString(), !h.ais_rows],
-      ["AIS vessels", String(h.ais_vessels), !h.ais_vessels],
-      ["Scenes indexed", String(h.scenes), !h.scenes],
-      ["Run history", ((h.storage || {}).megabytes || 0) + " MB", false],
-      ["Network", h.mode === "offline" ? "not used at runtime" : "online", false]
-    ].forEach(function (row) {
-      var r = el("div", "src" + (row[2] ? " bad" : ""));
-      r.appendChild(el("span", "nm", row[0]));
-      r.appendChild(el("span", "vl", row[1]));
-      box.appendChild(r);
-    });
-  }
 
-  function renderSysInfo(h) {
-    var box = $("sysinfo");
-    if (!box) return;
-    box.innerHTML = "";
-    var c = h.config || {};
-    var md = h.model_detail || {};
-    [
-      ["Version", h.version],
-      ["Mode", h.mode],
-      ["Device", md.device || "cpu"],
-      ["Checkpoint", md.checkpoint_mb ? md.checkpoint_mb + " MB" : "absent"],
-      ["Wind factor", c.alpha_wind],
-      ["Ensemble", c.ensemble_n],
-      ["Seed", c.seed],
-      ["Jobs kept", c.keep_jobs]
-    ].forEach(function (row) {
-      var kv = el("div", "kv");
-      kv.appendChild(el("span", "k", row[0]));
-      kv.appendChild(el("span", "v", String(row[1])));
-      box.appendChild(kv);
-    });
-  }
 
   /* ------------------------------------------------------- vessels view */
   function renderVesselList(job) {
@@ -1995,8 +2258,6 @@
   function loadHealth() {
     return getJSON("/api/health").then(function (h) {
       state.health = h;
-      renderSources(h);
-      renderSysInfo(h);
 
       if (h.warnings && h.warnings.length) {
         var box = $("notices");
@@ -2022,13 +2283,95 @@
       row.dataset.id = sc.id;
       row.setAttribute("aria-current", state.scene && state.scene.id === sc.id ? "true" : "false");
       row.appendChild(el("span", "nm", sc.title));
-      var real = sc.ais_mode === "real";
-      row.appendChild(el("span", "ais " + (real ? "real" : "sim"),
-        real ? "recorded AIS" : "simulated AIS"));
+      var mode = sc.ais_mode === "real" ? "real" : (sc.ais_mode === "none" ? "none" : "sim");
+      row.appendChild(el("span", "ais " + mode,
+        { real: "recorded AIS", sim: "simulated AIS", none: "no AIS" }[mode]));
       row.appendChild(el("span", "dt", utc(sc.t_sat).replace(" UTC", "") + " UTC"));
+      if (String(sc.source || "").indexOf("uploaded") === 0) {
+        row.appendChild(el("span", "up", "uploaded"));
+        var rm = el("span", "rm", "\u00d7");
+        rm.title = "Remove this uploaded scene";
+        rm.setAttribute("role", "button");
+        rm.addEventListener("click", function (e) { e.stopPropagation(); removeScene(sc); });
+        row.appendChild(rm);
+      }
       row.addEventListener("click", function () { selectScene(sc.id); });
       box.appendChild(row);
     });
+  }
+
+  /* Operator data. The forms post straight to /api/data; whatever the server
+     says about the file, good or bad, is shown as it said it. */
+  function notice(kind, text) {
+    var n = $("notices");
+    if (n) n.appendChild(el("div", "notice " + kind, text));
+  }
+
+  function postForm(path, form, statusEl) {
+    statusEl.className = "dlg-status";
+    statusEl.textContent = "Uploading and checking\u2026";
+    return fetch(API + path, { method: "POST", body: new FormData(form) }).then(function (r) {
+      return r.text().then(function (t) {
+        var body;
+        try { body = JSON.parse(t); } catch (e) { body = { detail: t }; }
+        if (!r.ok) throw new Error(typeof body.detail === "string" ? body.detail : r.status + " error");
+        return body;
+      });
+    }).catch(function (err) {
+      statusEl.className = "dlg-status bad";
+      statusEl.textContent = err.message;
+      throw err;
+    });
+  }
+
+  function wireDataForms() {
+    [["add-sar", "dlg-sar"], ["add-ais", "dlg-ais"]].forEach(function (p) {
+      var dlg = $(p[1]);
+      if (!dlg || !$(p[0])) return;
+      $(p[0]).addEventListener("click", function () { dlg.showModal(); });
+      dlg.querySelector("[data-close]").addEventListener("click", function () { dlg.close(); });
+    });
+    var fs = $("form-sar");
+    if (fs) fs.addEventListener("submit", function (e) {
+      e.preventDefault();
+      postForm("/api/data/sar", fs, $("sar-status")).then(function (res) {
+        $("dlg-sar").close();
+        fs.reset();
+        $("sar-status").textContent = "";
+        // selecting a scene clears the notices, so they are written after it
+        return loadScenes().then(function () {
+          selectScene(res.scene.id);
+          notice("ok", "Scene added: " + res.scene.title + " (" + res.size[0] + " x " + res.size[1] +
+            " px at " + res.pixel_m + " m). Press Run analysis to process it.");
+          (res.notes || []).forEach(function (t) { notice("warn", t); });
+          if (res.optical) notice("ok", "Optical image attached, " + res.optical.offset_label + ".");
+        });
+      }).catch(function () {});
+    });
+    var fa = $("form-ais");
+    if (fa) fa.addEventListener("submit", function (e) {
+      e.preventDefault();
+      postForm("/api/data/ais", fa, $("ais-status")).then(function (res) {
+        $("dlg-ais").close();
+        fa.reset();
+        $("ais-status").textContent = "";
+        var keep = state.scene && state.scene.id;
+        return loadScenes().then(function () {
+          if (keep) selectScene(keep);
+          notice("ok", "AIS loaded: " + res.rows + " positions from " + res.vessels + " vessels, " +
+            utc(res.t_start) + " to " + utc(res.t_end) + "." +
+            (res.covers_uploaded_scenes.length ? " Covers " + res.covers_uploaded_scenes.join(", ") + "." : ""));
+        });
+      }).catch(function () {});
+    });
+  }
+
+  function removeScene(sc) {
+    if (!window.confirm("Remove the uploaded scene \u201c" + sc.title + "\u201d? Its radar file is deleted.")) return;
+    fetch(API + "/api/data/scenes/" + encodeURIComponent(sc.id), { method: "DELETE" }).then(function (r) {
+      if (!r.ok) throw new Error("could not remove it (" + r.status + ")");
+      return loadScenes().then(function () { notice("ok", "Removed " + sc.title + "."); });
+    }).catch(function (err) { notice("bad", "Scene not removed: " + err.message); });
   }
 
   function selectScene(id) {
@@ -2039,7 +2382,6 @@
       r.setAttribute("aria-current", r.dataset.id === id ? "true" : "false");
     });
     resetRun();
-    renderSceneInfo(state.scene);
     loadOptical(state.scene);
     fitScene(state.scene);
   }
@@ -2058,12 +2400,11 @@
       if (list.length) {
         state.scene = list[0];
         renderSceneList(list);
-        renderSceneInfo(state.scene);
+        loadOptical(state.scene);
         fitScene(state.scene);
       } else {
         $("run").disabled = true;
         renderSceneList([]);
-        renderSceneInfo(null);
       }
       return list;
     });
@@ -2093,9 +2434,6 @@
     map.fitBounds(box, { padding: [24, 24], animate: false });
   }
 
-  function tickClock() {
-    $("clock").textContent = "UTC " + new Date().toISOString().substring(11, 19);
-  }
 
   /* Diagnostic probe. Runs clause (b) and (c) at a point the operator picks, so
      the physics and the AIS join can be exercised on open water. It skips
@@ -2103,15 +2441,15 @@
   function runProbe(latlng) {
     $("busy").classList.add("on");
     $("busytext").textContent = "PROBE: DRIFT AND AIS ONLY";
-    postJSON("/api/demo/inject", {
+    postJSON("/api/demo/inject", withSettings({
       lat: latlng.lat,
       lon: latlng.lng,
-      hindcast_hours: Number($("hind").value),
-      forecast_hours: Number($("fore").value),
-      radius_km: Number($("radius").value),
-      window_h: Number($("window").value)
-    }).then(showJob).catch(function (err) {
-      $("notices").appendChild(el("div", "notice bad", "Probe failed: " + err.message));
+      // Probe at the selected scene's radar pass: that is the hour the AIS
+      // and metocean on disk actually cover for this piece of sea.
+      t_sat: (state.scene && state.scene.t_sat) || null
+    }, { hindcast_hours: "hind", forecast_hours: "fore",
+         radius_km: "radius", window_h: "window" })).then(showJob).catch(function (err) {
+      $("notices").appendChild(el("div", "notice bad", "Probe not run: " + err.message));
     }).then(function () {
       $("busy").classList.remove("on");
     });
@@ -2122,6 +2460,7 @@
     initRails();
     initNav();
     $("run").addEventListener("click", runPipeline);
+    wireDataForms();
 
     $("probe").addEventListener("change", function (e) {
       document.getElementById("map").classList.toggle("probing", e.target.checked);
@@ -2230,7 +2569,12 @@
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       var tag = (e.target.tagName || "").toLowerCase();
       var typing = tag === "input" || tag === "select" || tag === "textarea";
-      if (e.key === "Enter" && !$("run").disabled) {
+      // Enter runs the analysis only from the run parameters or with nothing
+      // focused. Anywhere else it belongs to the control that has focus: an
+      // MMSI typed into search must not wipe the case and start a new run.
+      var inParams = !!(e.target.closest && e.target.closest(".rail-l .grid2"));
+      var idle = e.target === document.body || e.target === document.documentElement;
+      if (e.key === "Enter" && !$("run").disabled && (idle || (typing && inParams))) {
         e.preventDefault();
         runPipeline();
       } else if (!typing && (e.key === " " || e.key === "k")) {
@@ -2265,17 +2609,17 @@
   }
 
   function boot() {
+    refreshMapColors();
     initMap();
     renderLayers();
     wire();
     bindKeys();
-    tickClock();
-    setInterval(tickClock, 1000);
     loadHealth().catch(function (e) { console.error(e); });
     loadScenes().then(openLinkedJob).catch(function (e) {
       $("notices").appendChild(el("div", "notice bad", "Could not load scenes: " + e.message));
     });
     getJSON("/api/scoring").then(renderWeights).catch(function (e) { console.error(e); });
+    getJSON("/api/config").then(fillSettings).catch(function (e) { console.error(e); });
     window.addEventListener("hashchange", openLinkedJob);
   }
 

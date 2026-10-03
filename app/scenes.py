@@ -57,7 +57,7 @@ class Scene:
     backdrop: Optional[str] = None
     source: str = ""
     license: str = ""
-    ais_mode: str = "simulated"             # "real" or "simulated"
+    ais_mode: str = "simulated"             # "real", "simulated" or "none"
     notes: str = ""
     selftest: bool = False
     extra: Dict[str, Any] = field(default_factory=dict)
@@ -195,6 +195,52 @@ def _time_from_meta(sar) -> Optional[str]:
         return None
 
 
+def _uploads_path() -> Path:
+    return Path(config.DATA_DIR) / "uploads" / "scenes.json"
+
+
+def load_uploads() -> List[Scene]:
+    """Scenes an operator uploaded, kept apart from the prepared index."""
+    p = _uploads_path()
+    if not p.exists():
+        return []
+    try:
+        raw = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    out: List[Scene] = []
+    for item in raw.get("scenes", []):
+        known = {k: v for k, v in item.items() if k in Scene.__annotations__}
+        try:
+            scene = Scene(**known)
+        except TypeError:
+            continue
+        scene.sar_path = resolve_path(scene.sar_path)
+        if Path(scene.sar_path).exists():
+            out.append(scene)
+    return out
+
+
+def _write_uploads(scenes: List[Scene]) -> None:
+    p = _uploads_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    items = []
+    for s in scenes:
+        d = asdict(s)
+        d["sar_path"] = _relativise(d.get("sar_path"))
+        items.append(d)
+    p.write_text(json.dumps({"scenes": items}, indent=2), encoding="utf-8")
+
+
+def save_upload(scene: Scene) -> None:
+    current = [s for s in load_uploads() if s.id != scene.id]
+    _write_uploads(current + [scene])
+
+
+def remove_upload(scene_id: str) -> None:
+    _write_uploads([s for s in load_uploads() if s.id != scene_id])
+
+
 def scan_disk() -> List[Scene]:
     """Pick up any georeferenced TIFF in data/sar that is not already indexed.
 
@@ -233,7 +279,7 @@ def scan_disk() -> List[Scene]:
 def all_scenes(include_selftest: bool = None) -> List[Scene]:
     if include_selftest is None:
         include_selftest = config.ALLOW_SELFTEST_SCENES
-    scenes = load_index() + scan_disk()
+    scenes = load_index() + load_uploads() + scan_disk()
     seen = set()
     out: List[Scene] = []
     for s in scenes:

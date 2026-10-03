@@ -65,6 +65,12 @@ class MetoceanField:
     # The operator must be able to tell a live field from a frozen one.
     live: bool = False
     fetched_utc: Optional[str] = None
+    # True when the currents already include wave-driven Stokes drift, as
+    # Open-Meteo's marine currents do. The wind term is then smaller.
+    stokes_included: bool = False
+
+    def wind_factor(self) -> float:
+        return config.ALPHA_WIND_WITH_STOKES if self.stokes_included else config.ALPHA_WIND
 
     # -- metadata -----------------------------------------------------------
     @property
@@ -103,6 +109,8 @@ class MetoceanField:
             "live": self.live,
             "fetched_utc": self.fetched_utc,
             "has_currents": self.has_currents,
+            "stokes_included": self.stokes_included,
+            "wind_factor": self.wind_factor(),
             "mean_current_ms": round(float(np.mean(np.hypot(
                 self.data["u_current"], self.data["v_current"]))), 4),
             "mean_wind_ms": round(float(np.mean(np.hypot(
@@ -144,7 +152,7 @@ class MetoceanField:
         The optional deflection rotates only the wind-driven part, to the right
         in the northern hemisphere, matching the leeway convention in the spec.
         """
-        alpha = config.ALPHA_WIND if alpha is None else float(alpha)
+        alpha = self.wind_factor() if alpha is None else float(alpha)
         deflection_deg = config.DEFLECTION_DEG if deflection_deg is None else float(deflection_deg)
         s = self.sample(lat, lon, t)
         uw, vw = s["u_wind10"], s["v_wind10"]
@@ -231,13 +239,15 @@ def load_npz(path: Path) -> MetoceanField:
             meta = json.loads(str(z["meta"]))
         except Exception:
             meta = {}
-    return _from_arrays(
+    field = _from_arrays(
         z["time"], z["lat"], z["lon"],
         {k: z[k] for k in _VARS},
         meta.get("source", "cached npz"),
         meta.get("license", ""),
         meta.get("scene_id", path.stem),
     )
+    field.stokes_included = bool(meta.get("stokes_included", False))
+    return field
 
 
 def load_json(path: Path) -> MetoceanField:
@@ -421,6 +431,7 @@ def save_npz(path: Path, field: MetoceanField) -> None:
         "source": field.source,
         "license": field.license,
         "scene_id": field.scene_id,
+        "stokes_included": bool(field.stokes_included),
     })
     np.savez_compressed(
         path,

@@ -58,12 +58,15 @@ def job_progress(job_id: str) -> Dict[str, Any]:
 
 @router.post("/api/demo/inject")
 def inject(req: InjectRequest) -> Dict[str, Any]:
-    return core.run_probe(
-        lat=req.lat, lon=req.lon, t_sat=req.t_sat,
-        slick_radius_km=req.slick_radius_km,
-        hindcast_hours=req.hindcast_hours, forecast_hours=req.forecast_hours,
-        radius_km=req.radius_km, window_h=req.window_h, top_n=req.top_n,
-    )
+    try:
+        return core.run_probe(
+            lat=req.lat, lon=req.lon, t_sat=req.t_sat,
+            slick_radius_km=req.slick_radius_km,
+            hindcast_hours=req.hindcast_hours, forecast_hours=req.forecast_hours,
+            radius_km=req.radius_km, window_h=req.window_h, top_n=req.top_n,
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
 
 
 @router.get("/api/jobs", response_model=List[JobSummary])
@@ -141,7 +144,7 @@ def job(job_id: str, download: bool = False) -> Any:
         return Response(
             content=json.dumps(_clean_nans(doc), indent=2, default=str),
             media_type="application/json",
-            headers={"Content-Disposition": f'attachment; filename="tidetrace_{job_id}.json"'},
+            headers={"Content-Disposition": f'attachment; filename="tidetrail_{job_id}.json"'},
         )
     return doc
 
@@ -157,7 +160,7 @@ def job_geojson(job_id: str, download: bool = False) -> Any:
         return Response(
             content=json.dumps(_clean_nans(fc), indent=2, default=str),
             media_type="application/geo+json",
-            headers={"Content-Disposition": f'attachment; filename="tidetrace_{job_id}.geojson"'},
+            headers={"Content-Disposition": f'attachment; filename="tidetrail_{job_id}.geojson"'},
         )
     return fc
 

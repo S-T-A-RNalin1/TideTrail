@@ -14,6 +14,9 @@ What makes this a simulator rather than a fixture:
     origin time. That is the scenario being simulated, not a score injection.
     The generator writes what it did into `ground_truth.json`, which no part of
     the scoring pipeline ever reads.
+  * Ships stay at sea. A transit that would cross land is re-aimed, or cut to
+    the open water around it so the ship comes from or goes to the coast, and
+    a fishing pattern never steps ashore.
   * Nothing about ranking is arranged. Distractors are deliberately competitive:
     a fishing boat that passes closer than the tanker, and a second tanker at
     middle distance. If the scorer puts one of them first, that is the honest
@@ -35,6 +38,7 @@ import numpy as np
 
 from .. import config
 from ..geo.crs import LocalAEQD, bearing_deg
+from ..drift import land
 from . import ingest, vessel_types
 
 SOURCE_TAG = "simulated_traffic"
@@ -121,54 +125,112 @@ def _dims(rng: np.random.Generator, bucket: str) -> Tuple[float, float, float]:
             round(float(rng.uniform(lo_d, hi_d)), 1))
 
 
-def _transit_route(rng, frame, half_extent_m, t0, t1, speed_ms, offset_m=None,
-                   through: Optional[Tuple[float, float]] = None,
-                   through_time: Optional[float] = None):
-    """A straight transit across the domain, optionally through a fixed point."""
-    heading = float(rng.uniform(0, 2 * math.pi))
-    ux, uy = math.cos(heading), math.sin(heading)
-    px, py = -uy, ux
-
-    if through is not None and through_time is not None:
-        tx, ty = frame.to_m(np.array([through[0]]), np.array([through[1]]))
-        cx, cy = float(tx[0]), float(ty[0])
-        if offset_m is not None:
-            cx += px * offset_m
-            cy += py * offset_m
-        anchor_t = through_time
-    else:
-        off = float(rng.uniform(-half_extent_m, half_extent_m)) if offset_m is None else offset_m
-        cx, cy = px * off, py * off
-        anchor_t = float(rng.uniform(t0, t1))
-
-    span = half_extent_m * 2.4
+def _line(frame, cx, cy, ux, uy, span, anchor_t, speed_ms):
     back_t = anchor_t - span / max(speed_ms, 0.1) / 2.0
     fwd_t = anchor_t + span / max(speed_ms, 0.1) / 2.0
     sx, sy = cx - ux * span / 2.0, cy - uy * span / 2.0
     ex, ey = cx + ux * span / 2.0, cy + uy * span / 2.0
+    return (sx, sy, back_t), (ex, ey, fwd_t)
 
-    lon_s, lat_s = frame.to_deg(np.array([sx]), np.array([sy]))
-    lon_e, lat_e = frame.to_deg(np.array([ex]), np.array([ey]))
-    return [(float(lon_s[0]), float(lat_s[0]), back_t),
-            (float(lon_e[0]), float(lat_e[0]), fwd_t)]
+
+def _at_sea_part(frame, start, end, n=240):
+    """The stretch of a straight leg that is at sea around its middle, as a
+    fraction pair (a, b) of the leg, or None when the middle is ashore."""
+    f = np.linspace(0.0, 1.0, n)
+    x = start[0] + (end[0] - start[0]) * f
+    y = start[1] + (end[1] - start[1]) * f
+    lon, lat = frame.to_deg(x, y)
+    wet = ~land.on_land(lon, lat)
+    mid = n // 2
+    if not wet[mid]:
+        return None
+    a = mid
+    while a > 0 and wet[a - 1]:
+        a -= 1
+    b = mid
+    while b < n - 1 and wet[b + 1]:
+        b += 1
+    return float(f[a]), float(f[b])
+
+
+def _transit_route(rng, frame, half_extent_m, t0, t1, speed_ms, offset_m=None,
+                   through: Optional[Tuple[float, float]] = None,
+                   through_time: Optional[float] = None):
+    """A straight transit across the domain, optionally through a fixed point.
+
+    The heading is re-drawn until the whole leg is at sea; if no heading
+    manages that, the best one is cut to the open water around its middle.
+    """
+    span = half_extent_m * 2.4
+    best = None
+    for _ in range(60):
+        heading = float(rng.uniform(0, 2 * math.pi))
+        ux, uy = math.cos(heading), math.sin(heading)
+        px, py = -uy, ux
+        if through is not None and through_time is not None:
+            tx, ty = frame.to_m(np.array([through[0]]), np.array([through[1]]))
+            cx, cy = float(tx[0]), float(ty[0])
+            if offset_m is not None:
+                cx += px * offset_m
+                cy += py * offset_m
+            anchor_t = through_time
+        else:
+            off = float(rng.uniform(-half_extent_m, half_extent_m)) if offset_m is None else offset_m
+            cx, cy = px * off, py * off
+            anchor_t = float(rng.uniform(t0, t1))
+        start, end = _line(frame, cx, cy, ux, uy, span, anchor_t, speed_ms)
+        part = _at_sea_part(frame, start, end)
+        if part is None:
+            continue
+        if part == (0.0, 1.0):
+            best = (start, end, part)
+            break
+        if best is None or part[1] - part[0] > best[2][1] - best[2][0]:
+            best = (start, end, part)
+    if best is None:
+        # Everything around the anchor is land: fall back to the plain leg,
+        # which only happens for a domain drawn on a continent.
+        start, end = _line(frame, 0.0, 0.0, 1.0, 0.0, span, float(rng.uniform(t0, t1)), speed_ms)
+        best = (start, end, (0.0, 1.0))
+    start, end, (a, b) = best
+    pts = []
+    for f in (a, b):
+        x = start[0] + (end[0] - start[0]) * f
+        y = start[1] + (end[1] - start[1]) * f
+        t = start[2] + (end[2] - start[2]) * f
+        lon, lat = frame.to_deg(np.array([x]), np.array([y]))
+        pts.append((float(lon[0]), float(lat[0]), t))
+    return pts
 
 
 def _loiter_route(rng, frame, half_extent_m, t0, t1, speed_ms, n_legs=6,
                   centre_m: Optional[Tuple[float, float]] = None,
                   radius_m: float = 6000.0):
     """A fishing pattern: short legs with big course changes around one spot."""
+    def wet(x, y):
+        lon, lat = frame.to_deg(np.array([x]), np.array([y]))
+        return not bool(land.on_land(lon, lat)[0])
+
     if centre_m is None:
-        cx = float(rng.uniform(-half_extent_m, half_extent_m))
-        cy = float(rng.uniform(-half_extent_m, half_extent_m))
+        for _ in range(100):
+            cx = float(rng.uniform(-half_extent_m, half_extent_m))
+            cy = float(rng.uniform(-half_extent_m, half_extent_m))
+            if wet(cx, cy):
+                break
     else:
         cx, cy = centre_m
     pts: List[Tuple[float, float, float]] = []
     t = float(rng.uniform(t0, max(t0, t1 - 6 * 3600)))
     x, y = cx, cy
     for _ in range(n_legs):
-        ang = float(rng.uniform(0, 2 * math.pi))
-        leg = float(rng.uniform(0.3, 1.0)) * radius_m
-        nx, ny = x + math.cos(ang) * leg, y + math.sin(ang) * leg
+        for _try in range(24):
+            ang = float(rng.uniform(0, 2 * math.pi))
+            leg = float(rng.uniform(0.3, 1.0)) * radius_m
+            nx, ny = x + math.cos(ang) * leg, y + math.sin(ang) * leg
+            if wet(nx, ny) and wet((x + nx) / 2.0, (y + ny) / 2.0):
+                break
+        else:
+            break
         dt = leg / max(speed_ms, 0.3)
         lon, lat = frame.to_deg(np.array([x]), np.array([y]))
         pts.append((float(lon[0]), float(lat[0]), t))

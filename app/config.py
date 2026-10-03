@@ -56,6 +56,9 @@ def _b(name: str, default: bool) -> bool:
 # FROZEN CONSTANTS (spec: CONFIG DEFAULTS)
 # ----------------------------------------------------------------------------
 ALPHA_WIND = _f("TIDETRACE_ALPHA_WIND", 0.03)      # 3 percent of wind, Stokes off
+# When the current product already carries the wave-driven (Stokes) drift, only
+# the direct wind drag is added on top, at OpenDrift's oil default of 2 percent.
+ALPHA_WIND_WITH_STOKES = _f("TIDETRACE_ALPHA_WIND_WITH_STOKES", 0.02)
 DEFLECTION_DEG = _f("TIDETRACE_DEFLECTION_DEG", 15.0)  # right of wind in N hemisphere
 ENSEMBLE_N = _i("TIDETRACE_ENSEMBLE_N", 50)
 DT_SECONDS = _i("TIDETRACE_DT_SECONDS", 3600)
@@ -157,6 +160,7 @@ def as_dict() -> dict:
     """Config snapshot the UI renders so weights are never hidden."""
     return {
         "alpha_wind": ALPHA_WIND,
+        "alpha_wind_with_stokes": ALPHA_WIND_WITH_STOKES,
         "deflection_deg": DEFLECTION_DEG,
         "ensemble_n": ENSEMBLE_N,
         "dt_seconds": DT_SECONDS,

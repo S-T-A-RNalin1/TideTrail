@@ -65,7 +65,11 @@ def test_export_html_contains_sha256_and_itemized_telemetry(client, sample_job_i
     assert scene_hash in body
     assert dossier_hash in body
     assert "Cryptographic Chain of Custody" in body
-    assert "VERIFIED UNTAMPERED" in body
+    # The digests are computed from the document being exported, so the note can
+    # only tell the reader to record them. It must not claim to have verified them.
+    assert "DIGESTS COMPUTED AT EXPORT" in body
+    assert "VERIFIED UNTAMPERED" not in body
+    assert "Source Test" in body
     assert "Satellite Surveillance &amp; Scene Telemetry" in body or "Satellite Surveillance & Scene Telemetry" in body
     assert "Metocean &amp; Drift" in body or "Metocean & Drift" in body
     assert "Pipeline Execution Telemetry" in body
@@ -84,7 +88,7 @@ def test_export_json_attachment(client, sample_job_id):
     assert r.status_code == 200
     assert "application/json" in r.headers["content-type"]
     assert "attachment;" in r.headers.get("content-disposition", "")
-    assert f"tidetrace_{sample_job_id}.json" in r.headers.get("content-disposition", "")
+    assert f"tidetrail_{sample_job_id}.json" in r.headers.get("content-disposition", "")
 
     data = r.json()
     assert data["job_id"] == sample_job_id
@@ -96,7 +100,7 @@ def test_export_geojson_attachment(client, sample_job_id):
     assert r.status_code == 200
     assert "geo+json" in r.headers["content-type"]
     assert "attachment;" in r.headers.get("content-disposition", "")
-    assert f"tidetrace_{sample_job_id}.geojson" in r.headers.get("content-disposition", "")
+    assert f"tidetrail_{sample_job_id}.geojson" in r.headers.get("content-disposition", "")
 
     fc = r.json()
     assert fc["type"] == "FeatureCollection"

@@ -2,7 +2,7 @@
  
 **NTRO Oil Spill Attribution Console**
 
-`SIH26143` · National Technical Research Organisation · Software · Theme: Disaster Management / Space Technology
+National Technical Research Organisation · Software · Theme: Disaster Management / Space Technology
 
 TideTrail finds oil slicks in Sentinel-1 SAR imagery, runs the drift physics
 backwards through real cached wind and current fields to estimate where and when
@@ -10,11 +10,18 @@ the oil was released, projects where it goes next, pulls the AIS traffic that
 was around that origin, and ranks the vessels most worth investigating with the
 reasons attached.
 
+Then it tests every candidate source forward. Each nearby installation is leaked
+from its own position and each ranked vessel discharges along its own recorded
+AIS track; the oil is drifted to the radar time through the same wind and
+currents and compared with the slick the detector outlined. A vessel is only
+supported when its own track reproduces the slick. Otherwise the ranking is
+labelled for what it is: a list of leads.
+
 The whole thing runs on one laptop with the network unplugged. No Docker, no
 cloud service, no login at run time, no CUDA requirement.
 
 ```
-137 tests passing  ·  IoU_oil 0.889 on the Zenodo validation tiles  ·  zero false alarms on clean sea
+160 tests passing  ·  IoU_oil 0.889 on the Zenodo validation tiles  ·  zero false alarms on clean sea
 ```
 
 ---
@@ -31,6 +38,7 @@ cloud service, no login at run time, no CUDA requirement.
 - [The detector, measured](#the-detector-measured)
 - [The physics](#the-physics)
 - [The scoring](#the-scoring)
+- [The source test](#the-source-test)
 - [Module map](#module-map)
 - [API](#api)
 - [Tests](#tests)
@@ -42,29 +50,33 @@ cloud service, no login at run time, no CUDA requirement.
 
 ## The console
 
-Three rails over one run. The left rail picks the scene and holds the run
-parameters, the centre is the chart plus the time axis and the three cards that
-say how the run went, and the right rail is the evidence. The header switches
-the right rail between five views of the same job document: Investigate, Drift,
-Vessels, Method and Data.
+Three rails over one run. The left rail picks the scene and runs it, the centre
+is the chart and its time axis, and the right rail is the case. The header
+switches the right rail between four views of the same job document:
+Investigate, Drift, Vessels and Method.
+
+The chart opens with only what the case needs: the radar image, the oil, the
+backtrack and release zone, the forecast track, the three leading vessels and
+the source tests. Everything else is one click away in the layers panel.
 
 ### Investigate
 
-Detection, drift and forecast on one chart, with the slick geometry and the
-checkpoint metrics beside it.
+The finding in one sentence, the forward source tests that support or reject
+it, and the ranked vessels as leads.
 
 ![Investigate view](docs/screenshots/investigate.png)
 
 ### Drift
 
-The backward ensemble, the release zone it converged on, and the metocean fields
-that were actually integrated, printed with their source and cache date.
+Where and when the oil was released, how sure the drift is, where it goes next,
+and the wind and current fields that were integrated.
 
 ![Drift view](docs/screenshots/drift.png)
 
 ### Vessels
 
-The ranked leaderboard. Every entry carries its reason codes, and the score bar
+Ships on the radar first: every bright echo in the image, checked against where
+AIS says each vessel was at the moment of the pass. Then the ranked leaderboard. Every entry carries its reason codes, and the score bar
 runs solid to the ranked score then continues as a hairline to where the
 evidence alone would have placed the vessel. The gap is how much of the case
 rests on dead reckoning rather than received positions.
@@ -73,8 +85,9 @@ rests on dead reckoning rather than received positions.
 
 ### Method
 
-Weights, formulas and priors, served from `/api/scoring` and rendered on the
-page, so the ranking can be argued with rather than trusted.
+Weights, the exact scoring rules, the detector's measurements and the pipeline
+timings, served from the run and `/api/scoring`, so the ranking can be argued
+with rather than trusted.
 
 ![Method view](docs/screenshots/method.png)
 
@@ -87,13 +100,45 @@ of an empty panel.
 
 ![Clean scene](docs/screenshots/clean-scene.png)
 
-### Light theme
+### Probe a point
 
-Both themes are measured rather than eyeballed: every text colour clears 4.5:1
-against its own background. The chart stays dark in both, because inverting
-imagery makes a slick harder to read.
+Tick "Probe a point" and click open water to run the drift and the AIS join
+there without a radar detection, as if a 1.5 km slick had been reported at
+that spot. The probe uses the wind, currents and radar-pass time cached for
+the scene area the point falls in, whichever scene is selected. A click on
+land, or outside every cached area, is refused with a sentence saying why,
+rather than drifting on borrowed data. The result says whether its vessels
+are recorded or simulated.
 
-![Light theme](docs/screenshots/vessels-light.png)
+### Add data
+
+The prepared scenes are for the demo; an analyst works on their own passes.
+**Radar scene** takes a georeferenced Sigma0 GeoTIFF (Sentinel-1, RISAT-1A or
+any GRD at 5 to 50 m, cropped to at most 4096 pixels a side) with its pass time
+in UTC, and optionally an RGB optical GeoTIFF for the cross-check. **AIS file**
+takes a CSV in the MarineCadastre columns, the format the problem statement
+points to; positions keep the file name as their source. Each upload is
+checked, and refused with a sentence saying why when it cannot be used: no
+georeference, no pass time, a time in the future, pixels far from radar
+resolution, missing AIS columns. Uploads are kept in `data/uploads` with their
+own index, apart from the prepared scenes, and can be removed from the list.
+
+After an upload the console says what the scene still lacks. With no AIS
+covering it, detection and drift run and no vessel is ranked. With no cached
+wind and currents, the drift runs on a flagged constant field until
+`scripts/build_metocean_cache.py --scene <id>` is run on a networked machine.
+Outside the prepared areas the coastline comes from the bundled Natural Earth
+1:50m file, accurate to about 2 km, and is left off where it would put nearly
+the whole chip on land, which means an inland sea it does not carry.
+
+### Chart night
+
+The default is a day chart palette; the night palette keeps the same roles at
+low luminance for a darkened room, so the radar image stays the brightest thing
+on the screen. Neither uses blue: green is for controls and the forecast, ochre
+for the backtrack, magenta for the oil and its candidate sources.
+
+![Chart night](docs/screenshots/night.png)
 
 ---
 
@@ -220,7 +265,7 @@ exported with the Job JSON button.
 
 Everything outside the required block in [requirements.txt](requirements.txt) is
 genuinely optional. The app starts, serves the console and runs the full
-pipeline without any of it, and states in the Data view what it lost.
+pipeline without any of it, and reports what it lost at `/api/health`.
 
 ---
 
@@ -266,11 +311,12 @@ still works, which is the point.
 1. Vendors Leaflet 1.9 into `app/static/vendor/leaflet` so the browser needs no CDN.
 2. Fetches real Sentinel-1 chips, screening several acquisitions per site and
    keeping the one where a slick is actually visible.
-3. Caches real ERA5 wind and marine currents for each scene footprint.
+3. Caches real ERA5 wind and marine currents for each scene footprint, on a
+   0.1 degree grid, close to the 1/12 degree the current models are published at.
 4. Simulates AIS traffic for scenes outside public AIS coverage. Scenes inside
    coverage are skipped, with instructions to fetch the real thing.
-5. Caches a coastline (`scripts/build_land_mask.py`) so the forecast can report
-   whether the cone reaches land.
+5. Caches a coastline from Natural Earth 1:10m (`scripts/fetch_land_mask.py`),
+   used for the land mask, particle stranding and the coast impact figures.
 6. Caches a simplified world coastline (`scripts/fetch_world_land.py`, 724 KB
    for both levels of detail) so the chart is a map at every zoom rather than
    four imagery patches in an empty wash.
@@ -305,23 +351,28 @@ The fragment reopens a stored job at a given view without recomputing it.
 | Sentinel-2 L2A via Microsoft Planetary Computer | Optical corroboration chips | Contains modified Copernicus Sentinel data; CC BY 4.0 | No | No. Cached |
 | Open-Meteo Archive API (ERA5 10 m wind) | Clause (b) wind field | CC BY 4.0, free for non-commercial use | No | No. Cached to `data/metocean/*.npz` |
 | Copernicus Marine Service, `GLOBAL_ANALYSISFORECAST_PHY_001_024` | Clause (b) current field | E.U. Copernicus Marine Service Information, attribution required | No, the cubes ship pre-cut | No. Cached |
-| Open-Meteo Marine API | Clause (b) currents where CMEMS has no coverage | CC BY 4.0, free for non-commercial use | No | No. Cached |
+| Open-Meteo Marine API (Meteo-France SMOC, 1/12 degree, tides and Stokes drift included) | Clause (b) surface currents in the shipped cubes | CC BY 4.0, free for non-commercial use | No | No. Cached |
 | [MarineCadastre.gov AIS](https://marinecadastre.gov/accessais/) | Clause (c), real vessel tracks in US waters | US Government work, public domain | No | No. Clipped to the scene box, then the national file is deleted |
-| Natural Earth 1:10m land | Coast impact flag on the forecast cone | Public domain | No | No. Clipped to the scene footprints, 75 KB |
+| Natural Earth 1:10m land | Land mask, particle stranding, coast impact | Public domain | No | No. Clipped to the scene footprints |
 | Natural Earth 1:110m and 1:50m land | Continents on the chart base at every zoom | Public domain | No | No. Simplified once to 79 KB and 645 KB |
 | Simulated traffic (`app/ais/synthetic.py`) | Clause (c) where no public AIS exists | n/a | n/a | Yes, written in MarineCadastre columns |
 
 ECMWF CDS and NASA Earthdata are deliberately not used. Both need accounts, and
 the problem statement never asked for a live vendor API.
 
-### The four demo scenes
+### The five demo scenes
 
-| Scene | Radar pass | AIS |
-| --- | --- | --- |
-| Gulf of Mexico, MC20 chronic discharge site | 2023-09-24 00:02 UTC | Real, MarineCadastre |
-| Santa Barbara Channel natural seeps | 2023-08-29 01:59 UTC | Real, MarineCadastre |
-| Arabian Sea, Mumbai offshore approaches | 2024-03-13 01:03 UTC | Simulated |
-| Caspian Sea, Baku offshore field | 2023-10-14 02:44 UTC | Simulated |
+| Scene | Radar pass | AIS | What actually released the oil |
+| --- | --- | --- | --- |
+| Gulf of Mexico, MC20 chronic discharge site | 2023-09-24 00:02 UTC | Real, MarineCadastre | Taylor Energy's toppled platform, leaking wells since 2004 |
+| Santa Barbara Channel natural seeps | 2023-08-29 01:59 UTC | Real, MarineCadastre | Coal Oil Point natural seep field |
+| Arabian Sea, Mumbai offshore approaches | 2024-03-13 01:03 UTC | Simulated | Nothing: clean water |
+| Caspian Sea, Baku offshore field | 2023-10-14 02:44 UTC | Simulated | Unknown; offshore production area |
+| Arabian Sea off Kochi, MSC ELSA 3 wreck | 2025-05-28 00:41 UTC | None public | The wreck sank 3 days earlier; the pass shows wind-roughened sea |
+
+The last column matters. On both real-AIS scenes the true source is not a
+vessel, so a ranking that names a ship there would be wrong by construction.
+That is what the source test below exists to catch.
 
 `data/sar/scenes.json` records which is which in the `ais_mode` field, and the
 console prints it on every scene card, so a simulated track is never presented
@@ -357,15 +408,26 @@ the gate exists. See [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
 
 ## The physics
 
-Surface drift, with Stokes drift switched off:
+Surface drift:
 
 ```
-V = U_current + 0.03 * U_wind10
+V = U_current + alpha * U_wind10
 ```
 
-0.03 is the wind factor OpenDrift's maintainers quote when Stokes drift is not
-being double counted. An optional 15 degree leeway deflection rotates the wind
-term to the right in the northern hemisphere.
+alpha is 0.03 when the currents carry no wave-driven (Stokes) drift, the value
+OpenDrift's maintainers quote for that case, and 0.02 when they already include
+it, as Open-Meteo's marine currents do, so the wave part is not counted twice.
+Each cached cube records which it is and the run prints the factor it used. An
+optional 15 degree leeway deflection rotates the wind term to the right in the
+northern hemisphere.
+
+**The coast stops the oil.** A particle that steps from sea onto land is
+stranded where it last was at sea. Forward, that is oil on the beach, and the
+forecast reports what share of it reaches the shore and after how many hours.
+Backward, it is the coast closing a path: oil at sea did not come from inland,
+so the backtrack stops at the shore instead of walking across it. The origin
+zone and the drift envelopes are clipped to the sea. Before this, the Santa
+Barbara backtrack spent 35 of its 49 hours on the mainland.
 
 Integration is RK2 with a one hour step, in a local azimuthal equidistant frame
 recentred on the ensemble every step. The backward run is the same integrator
@@ -448,6 +510,115 @@ relative scale would hand the top slot to somebody on every scene, including a
 clean one. On a scene with no plausible suspect the leaderboard is empty and
 says so.
 
+### Two release hypotheses per vessel
+
+The candidate filter keeps a vessel for either of two reasons. The first is the
+origin rule above: near the estimated origin zone within three hours of the
+origin time. The second is time-matched: the vessel was where the drifting oil
+was, at that same hour, anywhere between the origin and the radar pass. Without
+the second rule a ship that discharged in the last few hours before the pass
+could never be considered, because the origin is at least six hours back and
+its window closes three hours before the image. Each vessel is scored under both
+hypotheses and keeps the better supported one; for the drift-corridor match the
+trajectory term compares the course with the slick's long axis, because a ship
+discharging under way lays the slick along its own track.
+
+---
+
+## The source test
+
+Every candidate is tested forward, as oil spill forensics tests a suspected
+source. Each installation within 25 km (OpenStreetMap platforms plus a short
+list of documented release points, each with its public reference) leaks from
+its own position; each of the top six ranked vessels discharges along its own
+AIS track. Parcels are released every 10 minutes over the 24 hours before the
+pass, in 16 ensemble runs that each carry one realisation of wind and current
+error, and drifted to the radar time. Each run is scored on its own.
+
+```
+window    the longest run of release times whose oil lands within 1 km of the
+          slick: if this source discharged, this is when (20 min minimum;
+          a single sample is presence, not a discharge)
+coverage  share of the slick within 1 km of the oil released in that window
+precision share of that oil lying within 1 km of the slick
+fit       harmonic mean of the two, averaged over the 16 runs;
+          0.40 supports a source, 0.25 is partial
+support   how many of the 16 runs reproduce the slick on their own
+```
+
+Coverage alone rewards a long discharge sweeping across scattered fragments;
+precision alone rewards one parcel that happens to land. The fit needs both.
+
+Scoring the runs one at a time matters. An earlier version pooled three runs
+into one cloud and scored that, which made the answer depend on how many runs
+were made and on the random seed: the same Santa Barbara slick gave Coal Oil
+Point anything from 0.00 to 0.62 across 20 seeds. Each candidate's seed now
+comes from the candidate itself, so adding one to the list never changes
+another's result.
+
+**Calibrated with twin experiments.** A slick is drawn from one unseen
+realisation of the drift, then the true source and decoys 3, 6 and 15 km away
+are tested against it. Over 30 slicks the true source cleared 0.40 in 26 and a
+decoy in 6 of 90. Every decoy that cleared it sat 3 km from the source and fit
+nearly as well, so when a runner-up fits at least three quarters as well as
+the best, the verdict is "ambiguous" and names both rather than picking one.
+
+**Checked against known answers.** `tests/test_source_hypotheses.py` makes
+slicks with the same drift model and asserts the test credits the true source
+and not a decoy: a leak from a fixed point, and a ship discharging under way,
+whose three-hour discharge window is recovered.
+
+**What it says on the real scenes**, with the drift data this repository ships:
+
+| Scene | Verdict | Detail |
+| --- | --- | --- |
+| Santa Barbara | Leads only | Three sources come close to the 0.40 bar and none clears it: the vessel NICHOLAS L (0.39, 6 of 16 runs), Platform Holly (0.36, 6 of 16) and the Coal Oil Point seeps (0.32, 5 of 16). 62 percent of the backtrack ends on the shoreline, which points at a coastal release, where both documented sources are. |
+| Gulf of Mexico MC20 | Leads only | The best candidate, the vessel BOSSMAN, fits at 0.33 (5 of 16 runs). Oil released at the documented MC20 site does not reach the detected fragments with these currents, so no source is named. |
+| Caspian | No slick | The one detection was a 0.07 km2 patch in the first thirteen columns of the chip, in the wind shadow of the Absheron spit. Small patches touching the image border are now set aside and counted. |
+
+Both real-AIS scenes are limitations stated plainly. Even with currents on the
+1/12 degree grid the models publish, next to the Mississippi delta and inside
+the Santa Barbara Channel the drift cannot tie either slick to one source with
+confidence. The system reports the near misses instead of forcing an answer,
+and it does not hand the blame to the nearest ship.
+
+**The currents were wrong before.** The cached cubes used to hold 5 x 5 points
+over 2.4 degrees, and grid points on land were stored as still water. Off
+Santa Barbara that read 0.02 m/s where the current model has 0.14 to 0.47 m/s.
+The cubes are now 21 x 21 points over 2 degrees, land cells take the nearest
+sea value, and the documented Santa Barbara sources went from reproducing the
+slick in 2 of 16 runs to 5 and 6.
+
+---
+
+## Ships on the radar
+
+A steel hull is a strong radar reflector, so a ship at sea shows as a small
+cluster of pixels far brighter than the water around it. Every run finds those
+echoes with a local contrast test (the idea behind a CFAR detector: 9 dB over
+the surrounding sea, a 13 dB peak, 3 to 1500 pixels, not on land) and drops any
+within 300 m of a known platform. Each remaining echo is compared with where
+AIS says every vessel was at the moment of the pass, interpolated between the
+fixes either side. A ship moving towards or away from the satellite is imaged
+displaced along the flight track, so an echo and its AIS fix pair within
+1.5 km rather than on the same pixel.
+
+An echo no AIS position explains is reported as having no AIS: a vessel with
+its transponder off, or a structure no map records. One pass cannot say which,
+and the console and the attribution note say so. Where the sea has no real AIS
+the echoes are listed and nothing is called unexplained, because AIS that was
+never recorded is not evidence of anything.
+
+| Scene | Echoes | With AIS | No AIS | On known platforms |
+| --- | --- | --- | --- | --- |
+| Gulf of Mexico MC20 | 1 | 1, PATI R MORAN at 0.45 km | 0 | 5 |
+| Santa Barbara | 4 | 2, CAPT T LE and NICHOLAS L | 2 | 1 (Platform Holly) |
+
+Every vessel AIS placed inside either scene at the pass was seen by the radar.
+On Santa Barbara the brightest echo sat 80 m from Platform Holly, which is not
+in OpenStreetMap; it is now in the documented list with its State Lands
+Commission reference.
+
 ---
 
 ## Module map
@@ -490,7 +661,7 @@ app/
   jobs/store.py      job documents, the step trace, live progress, retention
   static/            index.html, app.js, style.css, vendor/leaflet
 scripts/             one-off data preparation; all network access lives here
-tests/               126 tests, including a network-blocked end to end run
+tests/               160 tests, including a network-blocked end to end run
 ```
 
 ---
@@ -503,7 +674,12 @@ tests/               126 tests, including a network-blocked end to end run
 | GET | `/api/config` | every frozen constant and the scoring explanation |
 | GET | `/api/scenes` | demo scenes with footprint, time and AIS mode |
 | POST | `/api/detect` | segment one scene, return polygons and metrics |
-| POST | `/api/detect/upload` | same, for an uploaded GeoTIFF |
+| POST | `/api/detect/upload` | same, for an uploaded GeoTIFF (registered as below) |
+| POST | `/api/data/sar` | add a radar scene: GeoTIFF, pass time, optional optical image |
+| POST | `/api/data/ais` | add AIS positions from a MarineCadastre-format CSV |
+| POST | `/api/data/optical` | attach an optical GeoTIFF to a scene |
+| POST | `/api/data/metocean/{scene}` | fetch wind and currents for a scene, only when not offline |
+| DELETE | `/api/data/scenes/{scene}` | remove an uploaded scene and its files |
 | POST | `/api/drift` | hindcast, origin zone, forecast cone |
 | POST | `/api/attribute` | AIS join, filter, score, rank |
 | POST | `/api/run` | the whole pipeline, writes `data/jobs/<id>.json` |
@@ -525,7 +701,7 @@ tests/               126 tests, including a network-blocked end to end run
 python -m pytest tests -q
 ```
 
-126 tests. The ones that carry weight:
+160 tests. The ones that carry weight:
 
 - `test_advection`: 1 m/s for one hour is 3.6 km east; a backward run undoes a
   forward run; wind contributes exactly 3 percent of its speed; the origin rule
@@ -669,6 +845,38 @@ does not claim.
   25 to 30 of those are inference over 25 tiles of a 2048 x 2048 chip. The
   console polls `/api/jobs/{id}/progress` and names the step it is in, because a
   spinner with no position is indistinguishable from a hang over that long.
+- **The source test is only as good as the currents.** Public analysis currents
+  are about 8 km apart; near river deltas and coasts they miss the flow that
+  moves a slick, which is why the MC20 site does not reproduce its own slick.
+  NTRO's own regional ocean models would drop in through the same cache.
+- **Two sources can both fit.** A ship whose track runs along the drift line lays
+  a slick shaped like a plume from a fixed point, and two platforms a few
+  kilometres apart on the same drift line leave nearly the same slick. The test
+  then reports both and says the drift cannot separate them.
+- **AIS history starts about a day before each pass.** The MarineCadastre days
+  loaded begin 24 hours (Gulf) and 26 hours (Santa Barbara) before the radar
+  pass. Both estimated release times fall inside that, 11 hours back, but a
+  release older than a day would have no traffic to compare with.
+- **The shipped coastline is Natural Earth 1:10m.** It follows Santa Barbara to
+  within a few hundred metres and sits one to two kilometres east of the
+  Absheron spit; it also counts harbours and river channels as land, so a
+  berthed yacht reads as ashore. The land loader takes polygons with holes, so
+  a finer shoreline such as OpenStreetMap's can be dropped in unchanged.
+- **Berthed and anchored vessels are dropped unless they were on the oil's
+  path.** A vessel that never moved more than 300 m is kept only within 2 km of
+  the origin zone or the drifting oil; off Santa Barbara that removes 28 boats
+  in the harbour. AIS speeds of 102.3 kn (the "not available" code) and above
+  50 kn are treated as missing.
+- **An echo without AIS is not a dark vessel by itself.** It may be a buoy, a
+  rig or a structure no map records. The ship survey reports it for a human to
+  look at, and the platform list is what keeps known structures out.
+- **Installations come from OpenStreetMap,** which maps the Gulf and California
+  well and has no platforms around Mumbai High. An operator would load the DGH
+  or ONGC asset register into `data/infrastructure/`.
+- **Radar sees slicks only in moderate wind.** The Kochi pass three days after the
+  MSC ELSA 3 sinking is monsoon sea at 8.4 m/s mean wind, bright at -11.3 dB with
+  2.44 dB of structure; the console reports clean water rather than a slick it
+  cannot see.
 - **Radiometric alignment exists but is off by default.** Every run measures the
   scene's open-water level and warns when it sits far from the checkpoint's
   reference, because ocean backscatter moves several dB with wind and incidence

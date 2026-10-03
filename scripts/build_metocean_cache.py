@@ -67,6 +67,39 @@ CMEMS_LICENSE = ("E.U. Copernicus Marine Service Information; "
 KMH_TO_MS = 1000.0 / 3600.0
 
 
+BATCH = 100          # points per request
+BATCH_PAUSE_S = 13.0  # the free API allows 600 point-calls a minute
+
+
+def _batched(url: str, params: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Split a many-point query into paced requests and join the answers."""
+    lat_all, lon_all = params["latitude"], params["longitude"]
+    out: List[Dict[str, Any]] = []
+    for i in range(0, len(lat_all), BATCH):
+        if i:
+            time.sleep(BATCH_PAUSE_S)
+        p = dict(params, latitude=lat_all[i:i + BATCH], longitude=lon_all[i:i + BATCH])
+        out.extend(_as_list(_http_json(url, p, retries=5, pause=20.0)))
+    return out
+
+
+def fill_from_sea(u: np.ndarray, v: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """Give each land cell the current of the nearest sea cell.
+
+    A grid point on land comes back empty. Filling it with zero, which the
+    cache used to do, drags every coastal interpolation towards still water:
+    off Santa Barbara the cube read 0.02 m/s where the model has 0.4.
+    """
+    from scipy import ndimage as ndi
+    dry = ~np.isfinite(u).any(axis=0) | ~np.isfinite(v).any(axis=0)
+    if not dry.any() or dry.all():
+        return np.nan_to_num(u, nan=0.0), np.nan_to_num(v, nan=0.0)
+    _, (iy, ix) = ndi.distance_transform_edt(dry, return_indices=True)
+    u = np.nan_to_num(u[:, iy, ix], nan=0.0)
+    v = np.nan_to_num(v[:, iy, ix], nan=0.0)
+    return u.astype(np.float32), v.astype(np.float32)
+
+
 def _http_json(url: str, params: Dict[str, Any], retries: int = 3, pause: float = 2.0) -> Dict[str, Any]:
     import urllib.parse
     import urllib.request
@@ -115,7 +148,7 @@ def fetch_wind(lats: np.ndarray, lons: np.ndarray, start: str, end: str,
         "end_date": end,
     }
     url = WIND_URL if use_archive else WIND_FORECAST_URL
-    data = _as_list(_http_json(url, params))
+    data = _batched(url, params)
     times = data[0]["hourly"]["time"]
     nt = len(times)
     u = np.zeros((nt, lats.size, lons.size), dtype=np.float32)
@@ -145,7 +178,7 @@ def fetch_currents(lats: np.ndarray, lons: np.ndarray, start: str, end: str,
         "end_date": end,
     }
     try:
-        data = _as_list(_http_json(MARINE_URL, params))
+        data = _batched(MARINE_URL, params)
     except Exception as exc:
         print("  currents unavailable: %s" % exc)
         return (np.zeros((len(times_ref), lats.size, lons.size), dtype=np.float32),
@@ -154,8 +187,8 @@ def fetch_currents(lats: np.ndarray, lons: np.ndarray, start: str, end: str,
     src_times = data[0]["hourly"]["time"]
     idx = _align(src_times, times_ref)
     nt = len(times_ref)
-    u = np.zeros((nt, lats.size, lons.size), dtype=np.float32)
-    v = np.zeros_like(u)
+    u = np.full((nt, lats.size, lons.size), np.nan, dtype=np.float32)
+    v = np.full_like(u, np.nan)
     any_data = False
     for k, block in enumerate(data):
         i, j = divmod(k, lons.size)
@@ -166,13 +199,13 @@ def fetch_currents(lats: np.ndarray, lons: np.ndarray, start: str, end: str,
         good = np.isfinite(sp)
         if good.any():
             any_data = True
-        sp = np.nan_to_num(sp, nan=0.0) * KMH_TO_MS
-        di = np.nan_to_num(di, nan=0.0)
+        sp = sp * KMH_TO_MS
         rad = np.radians(di)
         cu = sp * np.sin(rad)   # oceanographic: goes TO
         cv = sp * np.cos(rad)
         u[:, i, j] = cu[idx]
         v[:, i, j] = cv[idx]
+    u, v = fill_from_sea(u, v)
     return u, v, any_data
 
 
@@ -252,7 +285,8 @@ def fetch_currents_cmems(lats: np.ndarray, lons: np.ndarray, start: str, end: st
 
         coverage = 100.0 * finite.mean()
         print("  CMEMS %s: %.1f%% of cells have data" % (dataset_id, coverage))
-        return (np.nan_to_num(u, nan=0.0), np.nan_to_num(v, nan=0.0), True)
+        u, v = fill_from_sea(u, v)
+        return (u, v, True)
 
     return _zero_currents(lats, lons, times_ref) + (False,)
 
@@ -306,6 +340,9 @@ def build_box(scene_id: str, lat: float, lon: float, t_center: datetime,
         license_=LICENSE + ("; " + CMEMS_LICENSE if current_source and "CMEMS" in current_source else ""),
         scene_id=scene_id,
     )
+    # Open-Meteo's marine currents are Meteo-France SMOC, which merges the
+    # tides and the wave-driven Stokes drift into the current.
+    field.stokes_included = current_source == "Open-Meteo marine"
     path = out_dir / ("%s.npz" % scene_id)
     fields_mod.save_npz(path, field)
 
@@ -328,7 +365,9 @@ def main() -> int:
     ap.add_argument("--t", help="observation time, ISO 8601 UTC")
     ap.add_argument("--id", help="scene id for a manual box")
     ap.add_argument("--half-deg", type=float, default=1.0)
-    ap.add_argument("--grid", type=int, default=5, help="points per side")
+    ap.add_argument("--grid", type=int, default=21,
+                    help="points per side; 21 over 2 degrees is 0.1 degree, close to "
+                         "the 1/12 degree the current models are published at")
     ap.add_argument("--back-hours", type=int, default=72)
     ap.add_argument("--forward-hours", type=int, default=48)
     ap.add_argument("--currents", choices=("auto", "cmems", "open-meteo"), default="auto",

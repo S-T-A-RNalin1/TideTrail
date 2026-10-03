@@ -187,6 +187,28 @@ def s_trajectory(track: Track, i_closest: int, origin: Tuple[float, float],
     }
 
 
+AXIS_TOLERANCE_DEG = 30.0
+
+
+def s_axis_alignment(track: Track, i: int, axis_deg: float) -> Tuple[float, Dict[str, Any]]:
+    """Does the vessel's course run along the slick's long axis?
+
+    A slick laid by a ship under way stretches along the ship's track, in
+    either direction, so the comparison is modulo 180 degrees.
+    """
+    have = float(track.cog[i]) if track.n else 0.0
+    d = angle_diff_deg(have, float(axis_deg))
+    d = min(d, 180.0 - d)
+    aligned = d <= AXIS_TOLERANCE_DEG
+    return (1.0 if aligned else TRAJECTORY_MISS), {
+        "course_deg": round(have, 1),
+        "slick_axis_deg": round(float(axis_deg) % 180.0, 1),
+        "difference_deg": round(d, 1),
+        "aligned": bool(aligned),
+        "against": "slick_axis",
+    }
+
+
 def s_behavior(track: Track, i_closest: int, origin_ring: Sequence[Tuple[float, float]],
                origin_lon: float, origin_lat: float) -> Tuple[float, List[str], Dict[str, Any]]:
     """max() of four independent anomaly detectors, with reasons for each hit."""
@@ -284,8 +306,27 @@ def score_track(
     track_stride: int = 5,
     t_origin_ts: Optional[int] = None,
     zone_radius_km: Optional[float] = None,
+    corridor_match: Optional[Dict[str, Any]] = None,
+    slick_axis_deg: Optional[float] = None,
+    t_sat_ts: Optional[int] = None,
 ) -> Suspect:
-    """Compute all five sub-scores for one vessel and assemble the reasons."""
+    """Compute all five sub-scores for one vessel and assemble the reasons.
+
+    Two release hypotheses are scored and the better supported one is kept:
+
+      origin_zone     the vessel passed the estimated origin near the origin
+                      time. This is the only hypothesis when no corridor match
+                      is given.
+      drift_corridor  the vessel was where the drifting oil was, at that same
+                      hour, somewhere between the origin and the radar pass.
+                      This is how a ship that discharged under way shortly
+                      before the pass shows up. Proximity decays on the
+                      ensemble spread at that hour; timing is full inside the
+                      corridor and decays only for matches earlier than the
+                      origin; trajectory compares the course with the slick's
+                      long axis, because a ship discharging under way lays
+                      the slick along its own track.
+    """
     w = dict(config.WEIGHTS if weights is None else weights)
 
     bucket, prior, human = vessel_types.describe(track.vessel_type_raw)
@@ -308,7 +349,32 @@ def score_track(
 
     sp = s_proximity(d_origin_km, zone_radius_km)
     stime = s_time(dt_hours) if dt_hours is not None else 0.0
-    st, traj_detail = s_trajectory(track, i_closest, (origin_lon, origin_lat), (slick_lon, slick_lat))
+
+    hypothesis = "origin_zone"
+    corridor_detail: Optional[Dict[str, Any]] = None
+    if corridor_match is not None and track.n:
+        prox_c = s_proximity(float(corridor_match["distance_km"]), float(corridor_match["spread_km"]))
+        early_h = 0.0 if t_origin_ts is None else max(
+            0.0, (int(t_origin_ts) - int(corridor_match["ts"])) / 3600.0)
+        time_c = s_time(early_h)
+        wp, wt = w.get("prox", 0.0), w.get("time", 0.0)
+        if wp * prox_c + wt * time_c > wp * sp + wt * stime:
+            hypothesis = "drift_corridor"
+            sp, stime = prox_c, time_c
+            i_closest = int(corridor_match["index"])
+            corridor_detail = {
+                "matched_utc": _iso(int(corridor_match["ts"])),
+                "distance_km": corridor_match["distance_km"],
+                "ensemble_spread_km": corridor_match["spread_km"],
+                "hours_before_pass": None if t_sat_ts is None else round(
+                    (int(t_sat_ts) - int(corridor_match["ts"])) / 3600.0, 2),
+                "hours_before_origin": round(early_h, 2),
+            }
+
+    if hypothesis == "drift_corridor" and slick_axis_deg is not None:
+        st, traj_detail = s_axis_alignment(track, i_closest, float(slick_axis_deg))
+    else:
+        st, traj_detail = s_trajectory(track, i_closest, (origin_lon, origin_lat), (slick_lon, slick_lat))
     sb, beh_reasons, beh_detail = s_behavior(track, i_closest, origin_ring, origin_lon, origin_lat)
 
     comps = {"prox": sp, "time": stime, "type": prior, "traj": st, "beh": sb}
@@ -321,14 +387,24 @@ def score_track(
     conf, conf_notes = track_confidence(track.raw_count, dr_fraction)
     percent_adjusted = percent * conf
 
-    reasons: List[str] = ["origin_distance_%.2fkm" % d_origin_km
-                          if math.isfinite(d_origin_km) else "origin_distance_unknown"]
-    if dt_hours is not None:
-        mins = int(round(abs(dt_hours) * 60))
-        reasons.append("%s_origin_by_%dmin" % ("before" if dt_hours < 0 else "after", mins)
-                       if mins else "at_origin_time")
+    if corridor_detail is not None:
+        reasons: List[str] = ["with_drifting_oil_%.1fkm%s" % (
+            corridor_detail["distance_km"],
+            "" if corridor_detail["hours_before_pass"] is None
+            else "_at_the_pass" if corridor_detail["hours_before_pass"] < 0.05
+            else "_%.1fh_before_pass" % corridor_detail["hours_before_pass"])]
+    else:
+        reasons = ["origin_distance_%.2fkm" % d_origin_km
+                   if math.isfinite(d_origin_km) else "origin_distance_unknown"]
+        if dt_hours is not None:
+            mins = int(round(abs(dt_hours) * 60))
+            reasons.append("%s_origin_by_%dmin" % ("before" if dt_hours < 0 else "after", mins)
+                           if mins else "at_origin_time")
     reasons.append("type_%s" % bucket)
-    if traj_detail["aligned"]:
+    if traj_detail.get("against") == "slick_axis":
+        reasons.append("course_%s_slick_axis_%ddeg" % (
+            "along" if traj_detail["aligned"] else "across", int(traj_detail["difference_deg"])))
+    elif traj_detail["aligned"]:
         reasons.append("course_aligned_%ddeg" % int(traj_detail["difference_deg"]))
     else:
         reasons.append("course_off_%ddeg" % int(traj_detail["difference_deg"]))
@@ -339,7 +415,7 @@ def score_track(
         "min_distance_km": None if not math.isfinite(d_km) else round(d_km, 3),
         "origin_distance_km": None if not math.isfinite(d_origin_km) else round(d_origin_km, 3),
         "zone_radius_km": None if zone_radius_km is None else round(float(zone_radius_km), 3),
-        "closest_approach_utc": _iso(t_closest),
+        "closest_approach_utc": _iso(int(track.ts[i_closest])) if track.n else _iso(t_closest),
         "origin_time_utc": None if t_origin_ts is None else _iso(int(t_origin_ts)),
         "time_offset_minutes": None if dt_hours is None else round(dt_hours * 60.0, 1),
         "closest_lon": round(float(track.lon[i_closest]), 6),
@@ -353,6 +429,8 @@ def score_track(
         "dead_reckoned_fraction": dr_fraction,
         "track_confidence": round(conf, 3),
         "confidence_notes": conf_notes,
+        "hypothesis": hypothesis,
+        "drift_corridor": corridor_detail,
     }
 
     return Suspect(
@@ -370,7 +448,7 @@ def score_track(
         detail=detail,
         track={
             "geojson": track.to_geojson(),
-            "samples": track.samples(stride=track_stride),
+            "samples": track.samples(stride=track_stride, dense_around=t_sat_ts),
             "closest_index": int(i_closest),
         },
     )
@@ -394,6 +472,9 @@ def rank_suspects(
     top_n: int = 10,
     t_origin_ts: Optional[int] = None,
     zone_radius_km: Optional[float] = None,
+    corridor_matches: Optional[Dict[int, Dict[str, Any]]] = None,
+    slick_axis_deg: Optional[float] = None,
+    t_sat_ts: Optional[int] = None,
 ) -> List[Suspect]:
     """Score every candidate and rank.
 
@@ -401,14 +482,18 @@ def rank_suspects(
     origin point, then on how much real track there was, then on MMSI, so the
     order is total and reproducible.
     """
+    corridor_matches = corridor_matches or {}
     out: List[Suspect] = []
     for mmsi, track in tracks.items():
         d, i = closest.get(mmsi, (float("inf"), 0))
-        if not math.isfinite(d):
+        match = corridor_matches.get(mmsi)
+        if not math.isfinite(d) and match is None:
             continue
         out.append(score_track(track, d, i, origin_ring, origin_lon, origin_lat,
                                slick_lon, slick_lat, weights=weights,
-                               t_origin_ts=t_origin_ts, zone_radius_km=zone_radius_km))
+                               t_origin_ts=t_origin_ts, zone_radius_km=zone_radius_km,
+                               corridor_match=match, slick_axis_deg=slick_axis_deg,
+                               t_sat_ts=t_sat_ts))
     out.sort(key=lambda s: (-s.score,
                             s.detail.get("origin_distance_km") if s.detail.get("origin_distance_km") is not None else 1e9,
                             -int(s.detail.get("raw_positions") or 0),
@@ -453,5 +538,11 @@ def explain_weights(weights: Dict[str, float] = None) -> Dict[str, Any]:
                        "A vessel seen twice cannot outrank one seen six hundred times on the "
                        "strength of the gap between those two sightings."
                        % (CONF_FLOOR, CONF_DR_PENALTY, CONF_MIN_POINTS)),
+        "hypotheses": ("Each vessel is scored twice and keeps the better supported release: "
+                       "near the estimated origin at the origin time, or with the drifting oil at "
+                       "the same hour anywhere between the origin and the radar pass. The second "
+                       "catches a ship that discharged under way shortly before the pass; its "
+                       "trajectory term compares the course with the slick's long axis within "
+                       "%.0f deg." % AXIS_TOLERANCE_DEG),
         "note": "Ranked likelihood for investigation. Not legal proof of discharge.",
     }

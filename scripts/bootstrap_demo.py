@@ -127,32 +127,35 @@ def main() -> int:
     args = ap.parse_args()
 
     if not args.skip_vendor:
-        run(["scripts/fetch_vendor.py"], "1/6  vendor Leaflet locally")
+        run(["scripts/fetch_vendor.py"], "1/7  vendor Leaflet locally")
 
     if not args.skip_scenes:
         for preset in args.scenes:
             run(["scripts/fetch_sentinel1_scene.py", "--preset", preset, "--candidates", "8"],
-                "2/6  fetch real Sentinel-1 chip: %s" % preset)
+                "2/7  fetch real Sentinel-1 chip: %s" % preset)
 
     if not args.skip_metocean:
         cmd = ["scripts/build_metocean_cache.py", "--all", "--half-deg", "1.2",
                "--currents", args.currents]
         if args.force:
             cmd.append("--force")
-        run(cmd, "3/6  cache real currents and 10 m wind")
+        run(cmd, "3/7  cache real currents and 10 m wind")
+
+    # Detection, drift stranding and the traffic simulator all need the shore.
+    run(["scripts/fetch_land_mask.py", "--all"], "4/7  coastline: Natural Earth 1:10m")
 
     if not args.skip_basemap:
         run(["scripts/fetch_basemap.py", "--all", "--max-zoom", str(args.basemap_zoom)],
-            "4/6  cache map tiles for the scene areas")
+            "5/7  cache map tiles for the scene areas")
 
     if not args.skip_ais:
         run(["scripts/build_synthetic_ais.py", "--all", "--vessels", str(args.vessels)],
-            "5/6  simulate traffic for scenes with no public AIS")
+            "6/7  simulate traffic for scenes with no public AIS")
         print("\n  Scenes inside MarineCadastre coverage were skipped on purpose.")
         print("  For those, fetch the real thing:")
         print("    python scripts/fetch_marinecadastre_ais.py --scene <scene_id> --days 3")
 
-    print("\n6/6  readiness check")
+    print("\n7/7  readiness check")
     return readiness()
 
 

@@ -1,0 +1,2830 @@
+{
+ "scene_id": "caspian_baku_seeps",
+ "bbox": [
+  49.949,
+  39.6899,
+  51.0102,
+  40.6902
+ ],
+ "fetched": "2026-09-26T18:18:23Z",
+ "source": "OpenStreetMap via Overpass (man_made=offshore_platform, seamark:type=platform)",
+ "license": "(c) OpenStreetMap contributors, ODbL 1.0",
+ "installations": [
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.25697,
+   "lon": 50.55546,
+   "operator": null,
+   "osm": "node/2019068085"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.264981,
+   "lon": 50.535519,
+   "operator": null,
+   "osm": "node/2019068108"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.272611,
+   "lon": 50.533975,
+   "operator": null,
+   "osm": "node/2019068111"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.385535,
+   "lon": 50.385959,
+   "operator": null,
+   "osm": "node/2019068113"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.39128,
+   "lon": 50.383772,
+   "operator": null,
+   "osm": "node/2019068116"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.39566,
+   "lon": 50.380086,
+   "operator": null,
+   "osm": "node/2019068118"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.407491,
+   "lon": 50.379441,
+   "operator": null,
+   "osm": "node/2019068121"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.483187,
+   "lon": 50.306898,
+   "operator": null,
+   "osm": "node/2019068123"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.483391,
+   "lon": 50.308844,
+   "operator": null,
+   "osm": "node/2019068125"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.484507,
+   "lon": 50.307718,
+   "operator": null,
+   "osm": "node/2019068128"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.484652,
+   "lon": 50.309479,
+   "operator": null,
+   "osm": "node/2019068130"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.485058,
+   "lon": 50.315022,
+   "operator": null,
+   "osm": "node/2019068133"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.48547,
+   "lon": 50.304712,
+   "operator": null,
+   "osm": "node/2019068135"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.485786,
+   "lon": 50.312273,
+   "operator": null,
+   "osm": "node/2019068137"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.487122,
+   "lon": 50.313009,
+   "operator": null,
+   "osm": "node/2019068153"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.487467,
+   "lon": 50.312267,
+   "operator": null,
+   "osm": "node/2019068162"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.4879,
+   "lon": 50.317282,
+   "operator": null,
+   "osm": "node/2019068169"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.488389,
+   "lon": 50.315228,
+   "operator": null,
+   "osm": "node/2019068189"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.488647,
+   "lon": 50.316935,
+   "operator": null,
+   "osm": "node/2019068190"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.491215,
+   "lon": 50.320508,
+   "operator": null,
+   "osm": "node/2019068193"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.492244,
+   "lon": 50.319552,
+   "operator": null,
+   "osm": "node/2019068195"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.493344,
+   "lon": 50.31891,
+   "operator": null,
+   "osm": "node/2019068197"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.493371,
+   "lon": 50.317452,
+   "operator": null,
+   "osm": "node/2019068200"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.495934,
+   "lon": 50.319762,
+   "operator": null,
+   "osm": "node/2019068203"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.496963,
+   "lon": 50.319622,
+   "operator": null,
+   "osm": "node/2019068206"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.499562,
+   "lon": 50.316787,
+   "operator": null,
+   "osm": "node/2019068208"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.499793,
+   "lon": 50.320905,
+   "operator": null,
+   "osm": "node/2019068212"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.500352,
+   "lon": 50.317791,
+   "operator": null,
+   "osm": "node/2019068214"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.500769,
+   "lon": 50.316204,
+   "operator": null,
+   "osm": "node/2019068216"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.500795,
+   "lon": 50.320543,
+   "operator": null,
+   "osm": "node/2019068219"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.501656,
+   "lon": 50.322083,
+   "operator": null,
+   "osm": "node/2019068222"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.501753,
+   "lon": 50.318875,
+   "operator": null,
+   "osm": "node/2019068225"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.50241,
+   "lon": 50.317429,
+   "operator": null,
+   "osm": "node/2019068227"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.502897,
+   "lon": 50.315691,
+   "operator": null,
+   "osm": "node/2019068229"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.503846,
+   "lon": 50.32052,
+   "operator": null,
+   "osm": "node/2019068231"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.504272,
+   "lon": 50.332276,
+   "operator": null,
+   "osm": "node/2019068234"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.506676,
+   "lon": 50.316741,
+   "operator": null,
+   "osm": "node/2019068236"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.507977,
+   "lon": 50.330447,
+   "operator": null,
+   "osm": "node/2019068239"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.50936,
+   "lon": 50.312335,
+   "operator": null,
+   "osm": "node/2019068242"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.509982,
+   "lon": 50.336643,
+   "operator": null,
+   "osm": "node/2019068244"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.512406,
+   "lon": 50.328156,
+   "operator": null,
+   "osm": "node/2019068247"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.513465,
+   "lon": 50.313851,
+   "operator": null,
+   "osm": "node/2019068250"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.514097,
+   "lon": 50.316702,
+   "operator": null,
+   "osm": "node/2019068258"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.517349,
+   "lon": 50.312874,
+   "operator": null,
+   "osm": "node/2019068261"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.525805,
+   "lon": 50.322002,
+   "operator": null,
+   "osm": "node/2019068263"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.542762,
+   "lon": 50.304933,
+   "operator": null,
+   "osm": "node/2019068264"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.544571,
+   "lon": 50.311825,
+   "operator": null,
+   "osm": "node/2019068265"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.544688,
+   "lon": 50.302921,
+   "operator": null,
+   "osm": "node/2019068266"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.545266,
+   "lon": 50.303453,
+   "operator": null,
+   "osm": "node/2019068267"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.545604,
+   "lon": 50.301734,
+   "operator": null,
+   "osm": "node/2019068269"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.549058,
+   "lon": 50.302608,
+   "operator": null,
+   "osm": "node/2019068272"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.549518,
+   "lon": 50.297354,
+   "operator": null,
+   "osm": "node/2019068274"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.550789,
+   "lon": 50.29658,
+   "operator": null,
+   "osm": "node/2019068277"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.551139,
+   "lon": 50.29741,
+   "operator": null,
+   "osm": "node/2019068279"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.552222,
+   "lon": 50.297366,
+   "operator": null,
+   "osm": "node/2019068281"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.552401,
+   "lon": 50.300105,
+   "operator": null,
+   "osm": "node/2019068284"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.554073,
+   "lon": 50.296569,
+   "operator": null,
+   "osm": "node/2019068286"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.556366,
+   "lon": 50.310513,
+   "operator": null,
+   "osm": "node/2019068289"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.557057,
+   "lon": 50.299779,
+   "operator": null,
+   "osm": "node/2019068291"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.558674,
+   "lon": 50.294423,
+   "operator": null,
+   "osm": "node/2019068294"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.560587,
+   "lon": 50.295331,
+   "operator": null,
+   "osm": "node/2019068297"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.560978,
+   "lon": 50.30175,
+   "operator": null,
+   "osm": "node/2019068299"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.561182,
+   "lon": 50.306847,
+   "operator": null,
+   "osm": "node/2019068303"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.5638,
+   "lon": 50.296813,
+   "operator": null,
+   "osm": "node/2019068305"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.565116,
+   "lon": 50.29088,
+   "operator": null,
+   "osm": "node/2019068308"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.565866,
+   "lon": 50.310617,
+   "operator": null,
+   "osm": "node/2019068310"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.566394,
+   "lon": 50.295937,
+   "operator": null,
+   "osm": "node/2019068313"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.566394,
+   "lon": 50.30607,
+   "operator": null,
+   "osm": "node/2019068316"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.571117,
+   "lon": 50.290461,
+   "operator": null,
+   "osm": "node/2019068318"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.572013,
+   "lon": 50.306019,
+   "operator": null,
+   "osm": "node/2019068322"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.572678,
+   "lon": 50.298229,
+   "operator": null,
+   "osm": "node/2019068330"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.57398,
+   "lon": 50.305501,
+   "operator": null,
+   "osm": "node/2019068333"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.576806,
+   "lon": 50.295512,
+   "operator": null,
+   "osm": "node/2019068336"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.577997,
+   "lon": 50.295781,
+   "operator": null,
+   "osm": "node/2019068337"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.58219,
+   "lon": 50.305339,
+   "operator": null,
+   "osm": "node/2019068338"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.244386,
+   "lon": 50.881784,
+   "operator": null,
+   "osm": "node/9543030352"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.242618,
+   "lon": 50.880561,
+   "operator": null,
+   "osm": "node/9543030353"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.242896,
+   "lon": 50.879595,
+   "operator": null,
+   "osm": "node/9543030354"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.244567,
+   "lon": 50.859253,
+   "operator": null,
+   "osm": "node/9543030355"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.246925,
+   "lon": 50.859983,
+   "operator": null,
+   "osm": "node/9543030356"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.245615,
+   "lon": 50.866635,
+   "operator": null,
+   "osm": "node/9543030357"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.244157,
+   "lon": 50.865154,
+   "operator": null,
+   "osm": "node/9543030358"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.241995,
+   "lon": 50.864103,
+   "operator": null,
+   "osm": "node/9543030359"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.235672,
+   "lon": 50.869081,
+   "operator": null,
+   "osm": "node/9543030360"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.237507,
+   "lon": 50.864918,
+   "operator": null,
+   "osm": "node/9543030361"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.239063,
+   "lon": 50.868566,
+   "operator": null,
+   "osm": "node/9543030362"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.238015,
+   "lon": 50.871119,
+   "operator": null,
+   "osm": "node/9543030363"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.239833,
+   "lon": 50.876763,
+   "operator": null,
+   "osm": "node/9543030364"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.236459,
+   "lon": 50.873115,
+   "operator": null,
+   "osm": "node/9543030365"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.234182,
+   "lon": 50.871141,
+   "operator": null,
+   "osm": "node/9543030366"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.232871,
+   "lon": 50.877299,
+   "operator": null,
+   "osm": "node/9543030367"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.233002,
+   "lon": 50.874746,
+   "operator": null,
+   "osm": "node/9543030368"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.231676,
+   "lon": 50.875454,
+   "operator": null,
+   "osm": "node/9543030369"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.230447,
+   "lon": 50.876956,
+   "operator": null,
+   "osm": "node/9543030370"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.23043,
+   "lon": 50.882385,
+   "operator": null,
+   "osm": "node/9543030371"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.230119,
+   "lon": 50.882857,
+   "operator": null,
+   "osm": "node/9543030372"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.229104,
+   "lon": 50.881612,
+   "operator": null,
+   "osm": "node/9543030373"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.228366,
+   "lon": 50.877149,
+   "operator": null,
+   "osm": "node/9543030374"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.225204,
+   "lon": 50.87187,
+   "operator": null,
+   "osm": "node/9543030375"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.228547,
+   "lon": 50.87363,
+   "operator": null,
+   "osm": "node/9543030376"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.229464,
+   "lon": 50.871527,
+   "operator": null,
+   "osm": "node/9543030377"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.230758,
+   "lon": 50.869532,
+   "operator": null,
+   "osm": "node/9543030378"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.232495,
+   "lon": 50.866764,
+   "operator": null,
+   "osm": "node/9543030379"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.233363,
+   "lon": 50.865262,
+   "operator": null,
+   "osm": "node/9543030380"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.244927,
+   "lon": 50.846443,
+   "operator": null,
+   "osm": "node/9543030381"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.257979,
+   "lon": 50.825543,
+   "operator": null,
+   "osm": "node/9543030382"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.254491,
+   "lon": 50.829749,
+   "operator": null,
+   "osm": "node/9543030383"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.255179,
+   "lon": 50.828569,
+   "operator": null,
+   "osm": "node/9543030384"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.287121,
+   "lon": 50.692034,
+   "operator": null,
+   "osm": "node/9543030385"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.281163,
+   "lon": 50.721517,
+   "operator": null,
+   "osm": "node/9543030386"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.287481,
+   "lon": 50.720315,
+   "operator": null,
+   "osm": "node/9543030387"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.280966,
+   "lon": 50.727739,
+   "operator": null,
+   "osm": "node/9543030388"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.282931,
+   "lon": 50.72864,
+   "operator": null,
+   "osm": "node/9543030389"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.283094,
+   "lon": 50.733447,
+   "operator": null,
+   "osm": "node/9543030390"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.279084,
+   "lon": 50.737996,
+   "operator": null,
+   "osm": "node/9543030391"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.283012,
+   "lon": 50.741301,
+   "operator": null,
+   "osm": "node/9543030392"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.283733,
+   "lon": 50.741429,
+   "operator": null,
+   "osm": "node/9543030393"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.280803,
+   "lon": 50.745463,
+   "operator": null,
+   "osm": "node/9543030394"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.278855,
+   "lon": 50.752008,
+   "operator": null,
+   "osm": "node/9543030395"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.277758,
+   "lon": 50.757265,
+   "operator": null,
+   "osm": "node/9543030396"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.276383,
+   "lon": 50.761299,
+   "operator": null,
+   "osm": "node/9543030397"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.279984,
+   "lon": 50.779924,
+   "operator": null,
+   "osm": "node/9543030398"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.275073,
+   "lon": 50.764861,
+   "operator": null,
+   "osm": "node/9543030399"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.274516,
+   "lon": 50.766878,
+   "operator": null,
+   "osm": "node/9543030400"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.272977,
+   "lon": 50.770955,
+   "operator": null,
+   "osm": "node/9543030401"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.270915,
+   "lon": 50.777178,
+   "operator": null,
+   "osm": "node/9543030402"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.27003,
+   "lon": 50.779796,
+   "operator": null,
+   "osm": "node/9543030403"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.269015,
+   "lon": 50.782285,
+   "operator": null,
+   "osm": "node/9543030404"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.264742,
+   "lon": 50.794516,
+   "operator": null,
+   "osm": "node/9543030405"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.263432,
+   "lon": 50.793271,
+   "operator": null,
+   "osm": "node/9543030406"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.266674,
+   "lon": 50.789151,
+   "operator": null,
+   "osm": "node/9543030407"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.265757,
+   "lon": 50.792048,
+   "operator": null,
+   "osm": "node/9543030408"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.268131,
+   "lon": 50.793142,
+   "operator": null,
+   "osm": "node/9543030409"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.270342,
+   "lon": 50.794129,
+   "operator": null,
+   "osm": "node/9543030410"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.272503,
+   "lon": 50.799794,
+   "operator": null,
+   "osm": "node/9543030411"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.264021,
+   "lon": 50.81342,
+   "operator": null,
+   "osm": "node/9543030413"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.263907,
+   "lon": 50.811403,
+   "operator": null,
+   "osm": "node/9543030414"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.266576,
+   "lon": 50.798421,
+   "operator": null,
+   "osm": "node/9543030415"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.263825,
+   "lon": 50.797863,
+   "operator": null,
+   "osm": "node/9543030416"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.328078,
+   "lon": 50.464046,
+   "operator": null,
+   "osm": "node/9543040784"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.319375,
+   "lon": 50.463531,
+   "operator": null,
+   "osm": "node/9543040785"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.319277,
+   "lon": 50.462694,
+   "operator": null,
+   "osm": "node/9543040786"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.251691,
+   "lon": 50.565476,
+   "operator": null,
+   "osm": "node/9543040787"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.243109,
+   "lon": 50.560021,
+   "operator": null,
+   "osm": "node/9543040788"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.243213,
+   "lon": 50.541377,
+   "operator": null,
+   "osm": "node/9543040789"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.248882,
+   "lon": 50.54724,
+   "operator": null,
+   "osm": "node/9543040790"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.2519,
+   "lon": 50.550671,
+   "operator": null,
+   "osm": "node/9543040791"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.263016,
+   "lon": 50.561723,
+   "operator": null,
+   "osm": "node/9543040793"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.26816,
+   "lon": 50.522368,
+   "operator": null,
+   "osm": "node/9543040794"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.26894,
+   "lon": 50.546674,
+   "operator": null,
+   "osm": "node/9543040795"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.273135,
+   "lon": 50.533832,
+   "operator": null,
+   "osm": "node/9543040796"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.272556,
+   "lon": 50.533818,
+   "operator": null,
+   "osm": "node/9543040797"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.26377,
+   "lon": 50.542742,
+   "operator": null,
+   "osm": "node/9543040798"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.257594,
+   "lon": 50.537276,
+   "operator": null,
+   "osm": "node/9543040799"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.257103,
+   "lon": 50.537254,
+   "operator": null,
+   "osm": "node/9543040800"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.261664,
+   "lon": 50.549203,
+   "operator": null,
+   "osm": "node/9543040801"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.26105,
+   "lon": 50.549329,
+   "operator": null,
+   "osm": "node/9543040802"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.260047,
+   "lon": 50.552993,
+   "operator": null,
+   "osm": "node/9543040803"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.257332,
+   "lon": 50.550397,
+   "operator": null,
+   "osm": "node/9543040804"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.258933,
+   "lon": 50.547565,
+   "operator": null,
+   "osm": "node/9543040805"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.338334,
+   "lon": 50.628262,
+   "operator": null,
+   "osm": "node/9543040806"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.329896,
+   "lon": 50.627282,
+   "operator": null,
+   "osm": "node/9543040807"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.316749,
+   "lon": 50.626751,
+   "operator": null,
+   "osm": "node/9543040808"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.315497,
+   "lon": 50.628262,
+   "operator": null,
+   "osm": "node/9543040809"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.312364,
+   "lon": 50.628599,
+   "operator": null,
+   "osm": "node/9543040810"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.324267,
+   "lon": 50.633044,
+   "operator": null,
+   "osm": "node/9543040811"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.316798,
+   "lon": 50.637295,
+   "operator": null,
+   "osm": "node/9543040812"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.238031,
+   "lon": 50.887685,
+   "operator": null,
+   "osm": "node/9543040813"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.247531,
+   "lon": 50.893779,
+   "operator": null,
+   "osm": "node/9543040814"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.234018,
+   "lon": 50.890667,
+   "operator": null,
+   "osm": "node/9543040815"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.232577,
+   "lon": 50.881205,
+   "operator": null,
+   "osm": "node/9543040816"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.235574,
+   "lon": 50.88378,
+   "operator": null,
+   "osm": "node/9543044217"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.231233,
+   "lon": 50.922747,
+   "operator": null,
+   "osm": "node/9543044218"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.235885,
+   "lon": 50.916224,
+   "operator": null,
+   "osm": "node/9543044219"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.232151,
+   "lon": 50.915043,
+   "operator": null,
+   "osm": "node/9543044220"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.230938,
+   "lon": 50.913927,
+   "operator": null,
+   "osm": "node/9543044221"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.229448,
+   "lon": 50.912383,
+   "operator": null,
+   "osm": "node/9543044222"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.228121,
+   "lon": 50.909636,
+   "operator": null,
+   "osm": "node/9543044223"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.226302,
+   "lon": 50.908842,
+   "operator": null,
+   "osm": "node/9543044224"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.224353,
+   "lon": 50.906675,
+   "operator": null,
+   "osm": "node/9543044225"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.221797,
+   "lon": 50.905087,
+   "operator": null,
+   "osm": "node/9543044226"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.220633,
+   "lon": 50.902104,
+   "operator": null,
+   "osm": "node/9543044227"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.221043,
+   "lon": 50.897856,
+   "operator": null,
+   "osm": "node/9543044228"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.216914,
+   "lon": 50.897212,
+   "operator": null,
+   "osm": "node/9543044229"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.217176,
+   "lon": 50.903349,
+   "operator": null,
+   "osm": "node/9543044230"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.215128,
+   "lon": 50.902319,
+   "operator": null,
+   "osm": "node/9543044231"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.213735,
+   "lon": 50.906117,
+   "operator": null,
+   "osm": "node/9543044232"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.199117,
+   "lon": 50.89335,
+   "operator": null,
+   "osm": "node/9543044233"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.202657,
+   "lon": 50.887599,
+   "operator": null,
+   "osm": "node/9543044234"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.210638,
+   "lon": 50.885453,
+   "operator": null,
+   "osm": "node/9543044235"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.206001,
+   "lon": 50.891912,
+   "operator": null,
+   "osm": "node/9543044236"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.205296,
+   "lon": 50.891268,
+   "operator": null,
+   "osm": "node/9543044237"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.207852,
+   "lon": 50.896718,
+   "operator": null,
+   "osm": "node/9543044238"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.212932,
+   "lon": 50.896761,
+   "operator": null,
+   "osm": "node/9543044239"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.21113,
+   "lon": 50.896139,
+   "operator": null,
+   "osm": "node/9543044240"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.212637,
+   "lon": 50.890389,
+   "operator": null,
+   "osm": "node/9543044241"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.213801,
+   "lon": 50.891912,
+   "operator": null,
+   "osm": "node/9543044242"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.213899,
+   "lon": 50.883265,
+   "operator": null,
+   "osm": "node/9543044243"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.21444,
+   "lon": 50.884209,
+   "operator": null,
+   "osm": "node/9543044244"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.217176,
+   "lon": 50.88438,
+   "operator": null,
+   "osm": "node/9543044245"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.218061,
+   "lon": 50.884874,
+   "operator": null,
+   "osm": "node/9543044246"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.216865,
+   "lon": 50.886419,
+   "operator": null,
+   "osm": "node/9543044247"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.21539,
+   "lon": 50.887513,
+   "operator": null,
+   "osm": "node/9543044248"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.217586,
+   "lon": 50.890195,
+   "operator": null,
+   "osm": "node/9543044249"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.220142,
+   "lon": 50.886891,
+   "operator": null,
+   "osm": "node/9543044250"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.223632,
+   "lon": 50.882986,
+   "operator": null,
+   "osm": "node/9543044251"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.225041,
+   "lon": 50.887127,
+   "operator": null,
+   "osm": "node/9543044252"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.224221,
+   "lon": 50.888457,
+   "operator": null,
+   "osm": "node/9543044253"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.228334,
+   "lon": 50.890904,
+   "operator": null,
+   "osm": "node/9543044254"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.228497,
+   "lon": 50.887127,
+   "operator": null,
+   "osm": "node/9543044255"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.230545,
+   "lon": 50.889702,
+   "operator": null,
+   "osm": "node/9543044256"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.232167,
+   "lon": 50.891955,
+   "operator": null,
+   "osm": "node/9543044257"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.233723,
+   "lon": 50.891054,
+   "operator": null,
+   "osm": "node/9543044258"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.234083,
+   "lon": 50.894616,
+   "operator": null,
+   "osm": "node/9543044259"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.238719,
+   "lon": 50.908756,
+   "operator": null,
+   "osm": "node/9543044260"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.238244,
+   "lon": 50.90661,
+   "operator": null,
+   "osm": "node/9543044261"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.236197,
+   "lon": 50.90513,
+   "operator": null,
+   "osm": "node/9543044262"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.234034,
+   "lon": 50.903714,
+   "operator": null,
+   "osm": "node/9543044263"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.23179,
+   "lon": 50.902169,
+   "operator": null,
+   "osm": "node/9543044264"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.22989,
+   "lon": 50.900044,
+   "operator": null,
+   "osm": "node/9543044265"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.227465,
+   "lon": 50.897512,
+   "operator": null,
+   "osm": "node/9543044266"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.226007,
+   "lon": 50.895688,
+   "operator": null,
+   "osm": "node/9543044267"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.241422,
+   "lon": 50.878544,
+   "operator": null,
+   "osm": "node/9543044268"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.242257,
+   "lon": 50.880411,
+   "operator": null,
+   "osm": "node/9543044269"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.244943,
+   "lon": 50.882256,
+   "operator": null,
+   "osm": "node/9543044270"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.259486,
+   "lon": 50.807605,
+   "operator": null,
+   "osm": "node/9543044317"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.236885,
+   "lon": 50.855477,
+   "operator": null,
+   "osm": "node/9543044522"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.237278,
+   "lon": 50.848804,
+   "operator": null,
+   "osm": "node/9543044523"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.238867,
+   "lon": 50.847516,
+   "operator": null,
+   "osm": "node/9543044524"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.239555,
+   "lon": 50.844898,
+   "operator": null,
+   "osm": "node/9543044525"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.23962,
+   "lon": 50.846272,
+   "operator": null,
+   "osm": "node/9543044526"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.238449,
+   "lon": 50.850542,
+   "operator": null,
+   "osm": "node/9543044527"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.228317,
+   "lon": 50.855949,
+   "operator": null,
+   "osm": "node/9543044532"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.227809,
+   "lon": 50.852644,
+   "operator": null,
+   "osm": "node/9543044533"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.228284,
+   "lon": 50.851099,
+   "operator": null,
+   "osm": "node/9543044534"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.23084,
+   "lon": 50.846143,
+   "operator": null,
+   "osm": "node/9543044535"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.231217,
+   "lon": 50.844319,
+   "operator": null,
+   "osm": "node/9543044536"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.232085,
+   "lon": 50.842452,
+   "operator": null,
+   "osm": "node/9543044537"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.233658,
+   "lon": 50.841723,
+   "operator": null,
+   "osm": "node/9543044538"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.234149,
+   "lon": 50.840478,
+   "operator": null,
+   "osm": "node/9543044539"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.234657,
+   "lon": 50.839491,
+   "operator": null,
+   "osm": "node/9543044540"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.234166,
+   "lon": 50.836616,
+   "operator": null,
+   "osm": "node/9543044541"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.233297,
+   "lon": 50.835864,
+   "operator": null,
+   "osm": "node/9543044542"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.235541,
+   "lon": 50.837388,
+   "operator": null,
+   "osm": "node/9543044543"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.236852,
+   "lon": 50.837603,
+   "operator": null,
+   "osm": "node/9543044544"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.235214,
+   "lon": 50.842473,
+   "operator": null,
+   "osm": "node/9543044545"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.238048,
+   "lon": 50.838397,
+   "operator": null,
+   "osm": "node/9543044546"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.238785,
+   "lon": 50.841272,
+   "operator": null,
+   "osm": "node/9543044547"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.239931,
+   "lon": 50.840542,
+   "operator": null,
+   "osm": "node/9543044548"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.244321,
+   "lon": 50.838203,
+   "operator": null,
+   "osm": "node/9543044549"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.24627,
+   "lon": 50.831251,
+   "operator": null,
+   "osm": "node/9543044550"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.252526,
+   "lon": 50.823913,
+   "operator": null,
+   "osm": "node/9543044551"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.220573,
+   "lon": 50.879369,
+   "operator": null,
+   "osm": "node/9545109238"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.218283,
+   "lon": 50.873935,
+   "operator": null,
+   "osm": "node/9545109239"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.216544,
+   "lon": 50.878583,
+   "operator": null,
+   "osm": "node/9545109240"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.243461,
+   "lon": 50.854978,
+   "operator": null,
+   "osm": "node/9545109252"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.24567,
+   "lon": 50.85219,
+   "operator": null,
+   "osm": "node/9545109253"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.242821,
+   "lon": 50.839543,
+   "operator": null,
+   "osm": "node/9545109254"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.242322,
+   "lon": 50.840485,
+   "operator": null,
+   "osm": "node/9545109255"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.241722,
+   "lon": 50.841533,
+   "operator": null,
+   "osm": "node/9545109256"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.246599,
+   "lon": 50.832421,
+   "operator": null,
+   "osm": "node/9545109257"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.251045,
+   "lon": 50.838194,
+   "operator": null,
+   "osm": "node/9545109258"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.252474,
+   "lon": 50.839752,
+   "operator": null,
+   "osm": "node/9545109259"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.251915,
+   "lon": 50.84097,
+   "operator": null,
+   "osm": "node/9545109260"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.247968,
+   "lon": 50.838875,
+   "operator": null,
+   "osm": "node/9545109262"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.248677,
+   "lon": 50.837932,
+   "operator": null,
+   "osm": "node/9545109263"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.246949,
+   "lon": 50.838587,
+   "operator": null,
+   "osm": "node/9545109264"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.245719,
+   "lon": 50.839137,
+   "operator": null,
+   "osm": "node/9545109265"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.246509,
+   "lon": 50.845382,
+   "operator": null,
+   "osm": "node/9545109266"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.24568,
+   "lon": 50.843353,
+   "operator": null,
+   "osm": "node/9545109267"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.246909,
+   "lon": 50.8397,
+   "operator": null,
+   "osm": "node/9545109268"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.248897,
+   "lon": 50.840603,
+   "operator": null,
+   "osm": "node/9545109269"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.248567,
+   "lon": 50.844622,
+   "operator": null,
+   "osm": "node/9545109270"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.251585,
+   "lon": 50.835825,
+   "operator": null,
+   "osm": "node/9545109271"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.253444,
+   "lon": 50.838993,
+   "operator": null,
+   "osm": "node/9545109272"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.256121,
+   "lon": 50.842593,
+   "operator": null,
+   "osm": "node/9545109273"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.314661,
+   "lon": 50.631995,
+   "operator": null,
+   "osm": "node/9545158886"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.251323,
+   "lon": 50.558078,
+   "operator": null,
+   "osm": "node/9545255126"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.251749,
+   "lon": 50.561457,
+   "operator": null,
+   "osm": "node/9545255127"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.351556,
+   "lon": 50.563282,
+   "operator": null,
+   "osm": "node/9545255128"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.351219,
+   "lon": 50.563422,
+   "operator": null,
+   "osm": "node/9545255129"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.355113,
+   "lon": 50.564833,
+   "operator": null,
+   "osm": "node/9545255130"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.357717,
+   "lon": 50.578772,
+   "operator": null,
+   "osm": "node/9545255131"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.358146,
+   "lon": 50.578509,
+   "operator": null,
+   "osm": "node/9545255132"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.353478,
+   "lon": 50.588366,
+   "operator": null,
+   "osm": "node/9545255133"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.344872,
+   "lon": 50.600318,
+   "operator": null,
+   "osm": "node/9545255134"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.345821,
+   "lon": 50.599186,
+   "operator": null,
+   "osm": "node/9545255135"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.346481,
+   "lon": 50.598956,
+   "operator": null,
+   "osm": "node/9545255136"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.335123,
+   "lon": 50.612335,
+   "operator": null,
+   "osm": "node/9545255149"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.331955,
+   "lon": 50.614892,
+   "operator": null,
+   "osm": "node/9545255150"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.335327,
+   "lon": 50.615998,
+   "operator": null,
+   "osm": "node/9545255151"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.330544,
+   "lon": 50.626993,
+   "operator": null,
+   "osm": "node/9545255164"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.32487,
+   "lon": 50.632961,
+   "operator": null,
+   "osm": "node/9545255251"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.321005,
+   "lon": 50.624751,
+   "operator": null,
+   "osm": "node/9545255252"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.316538,
+   "lon": 50.626558,
+   "operator": null,
+   "osm": "node/9545255253"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.316136,
+   "lon": 50.626564,
+   "operator": null,
+   "osm": "node/9545255254"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.31708,
+   "lon": 50.62636,
+   "operator": null,
+   "osm": "node/9545255255"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.283759,
+   "lon": 50.527651,
+   "operator": null,
+   "osm": "node/9545256056"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.28098,
+   "lon": 50.528674,
+   "operator": null,
+   "osm": "node/9545256057"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.280504,
+   "lon": 50.529468,
+   "operator": null,
+   "osm": "node/9545256058"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.280336,
+   "lon": 50.529505,
+   "operator": null,
+   "osm": "node/9545256059"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.279908,
+   "lon": 50.529411,
+   "operator": null,
+   "osm": "node/9545256060"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.278238,
+   "lon": 50.532024,
+   "operator": null,
+   "osm": "node/9545256061"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.281108,
+   "lon": 50.532031,
+   "operator": null,
+   "osm": "node/9545256062"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.280248,
+   "lon": 50.534093,
+   "operator": null,
+   "osm": "node/9545256063"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.280289,
+   "lon": 50.534161,
+   "operator": null,
+   "osm": "node/9545256064"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.280339,
+   "lon": 50.534199,
+   "operator": null,
+   "osm": "node/9545256065"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.243234,
+   "lon": 50.541438,
+   "operator": null,
+   "osm": "way/199535137"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.268973,
+   "lon": 50.546602,
+   "operator": null,
+   "osm": "way/199535138"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.251832,
+   "lon": 50.550725,
+   "operator": null,
+   "osm": "way/199535139"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.263794,
+   "lon": 50.542739,
+   "operator": null,
+   "osm": "way/199535140"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.260273,
+   "lon": 50.553012,
+   "operator": null,
+   "osm": "way/199535143"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.257197,
+   "lon": 50.555511,
+   "operator": null,
+   "osm": "way/199535145"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.272551,
+   "lon": 50.533815,
+   "operator": null,
+   "osm": "way/199535147"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.268701,
+   "lon": 50.522187,
+   "operator": null,
+   "osm": "way/199535148"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.26555,
+   "lon": 50.535447,
+   "operator": null,
+   "osm": "way/199535149"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.257593,
+   "lon": 50.537273,
+   "operator": null,
+   "osm": "way/199535150"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.264984,
+   "lon": 50.535511,
+   "operator": null,
+   "osm": "way/199535151"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.243099,
+   "lon": 50.560022,
+   "operator": null,
+   "osm": "way/199535152"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.261673,
+   "lon": 50.549206,
+   "operator": null,
+   "osm": "way/199535154"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.25948,
+   "lon": 50.547395,
+   "operator": null,
+   "osm": "way/199535155"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.264315,
+   "lon": 50.542565,
+   "operator": null,
+   "osm": "way/199535157"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.252386,
+   "lon": 50.55074,
+   "operator": null,
+   "osm": "way/199535159"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.258911,
+   "lon": 50.54757,
+   "operator": null,
+   "osm": "way/199535160"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.257326,
+   "lon": 50.550373,
+   "operator": null,
+   "osm": "way/199535161"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.268144,
+   "lon": 50.52237,
+   "operator": null,
+   "osm": "way/199535169"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.261102,
+   "lon": 50.549299,
+   "operator": null,
+   "osm": "way/199535170"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.257038,
+   "lon": 50.537332,
+   "operator": null,
+   "osm": "way/199535174"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.235189,
+   "lon": 50.83788,
+   "operator": null,
+   "osm": "way/1035999851"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.235776,
+   "lon": 50.916357,
+   "operator": null,
+   "osm": "way/1035999852"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.231166,
+   "lon": 50.922713,
+   "operator": null,
+   "osm": "way/1035999853"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.213656,
+   "lon": 50.906124,
+   "operator": null,
+   "osm": "way/1035999854"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.221109,
+   "lon": 50.897812,
+   "operator": null,
+   "osm": "way/1035999855"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.233768,
+   "lon": 50.890889,
+   "operator": null,
+   "osm": "way/1035999856"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.228513,
+   "lon": 50.887044,
+   "operator": null,
+   "osm": "way/1035999857"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.212604,
+   "lon": 50.890354,
+   "operator": null,
+   "osm": "way/1035999858"
+  },
+  {
+   "name": "unnamed platform",
+   "kind": "offshore_platform",
+   "lat": 40.214359,
+   "lon": 50.884312,
+   "operator": null,
+   "osm": "way/1035999859"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.263066,
+   "lon": 50.561604,
+   "operator": null,
+   "osm": "way/1036016395"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.268398,
+   "lon": 50.566556,
+   "operator": null,
+   "osm": "way/1036016396"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.251744,
+   "lon": 50.561388,
+   "operator": null,
+   "osm": "way/1036016397"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.251312,
+   "lon": 50.558033,
+   "operator": null,
+   "osm": "way/1036016398"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.331961,
+   "lon": 50.614942,
+   "operator": null,
+   "osm": "way/1036016399"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.335111,
+   "lon": 50.612354,
+   "operator": null,
+   "osm": "way/1036016400"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.335333,
+   "lon": 50.616015,
+   "operator": null,
+   "osm": "way/1036016401"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.330163,
+   "lon": 50.627227,
+   "operator": null,
+   "osm": "way/1036016402"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.324558,
+   "lon": 50.633,
+   "operator": null,
+   "osm": "way/1036016403"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.31673,
+   "lon": 50.637172,
+   "operator": null,
+   "osm": "way/1036016404"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.312303,
+   "lon": 50.628479,
+   "operator": null,
+   "osm": "way/1036016405"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.314661,
+   "lon": 50.632007,
+   "operator": null,
+   "osm": "way/1036016406"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.315917,
+   "lon": 50.628347,
+   "operator": null,
+   "osm": "way/1036016407"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.316649,
+   "lon": 50.62661,
+   "operator": null,
+   "osm": "way/1036016408"
+  },
+  {
+   "name": "oil drilling production platform",
+   "kind": "offshore_platform",
+   "lat": 40.321258,
+   "lon": 50.624488,
+   "operator": null,
+   "osm": "way/1036016420"
+  }
+ ]
+}

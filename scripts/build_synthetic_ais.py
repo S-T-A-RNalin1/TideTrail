@@ -98,6 +98,9 @@ def main() -> int:
     replaced = not args.keep
     total = 0
     for scene in targets:
+        if scene.ais_mode == "none" and not args.force:
+            print("[%s] marked as having no AIS at all; nothing to simulate." % scene.id)
+            continue
         if scene.ais_mode == "real" and not args.force:
             print("[%s] footprint is inside MarineCadastre coverage, so real AIS is "
                   "the correct source. Use scripts/fetch_marinecadastre_ais.py, or "

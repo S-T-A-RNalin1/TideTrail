@@ -17,6 +17,12 @@ the ensemble each step, so nothing degrades with latitude.
 Backward runs are the same integrator with a negative dt. That is what makes
 the hindcast honest: it is the forward physics run in reverse, not a separate
 heuristic.
+
+A particle that steps from sea onto land is stranded and stays where it last
+was at sea. Forward, that is oil on the beach. Backward, it is the coast
+closing a path: oil at sea did not come from inland, so the backtrack stops at
+the shore instead of walking across it. A particle that starts ashore, which
+happens where a slick outline brushes a coarse coastline, is left free.
 """
 from __future__ import annotations
 
@@ -29,6 +35,7 @@ import numpy as np
 from .. import config
 from ..geo.crs import LocalAEQD
 from ..geo.geometry import hull_ring, spread_radius_km
+from . import land as land_mod
 from .fields import MetoceanField
 
 
@@ -52,6 +59,10 @@ class EnsembleRun:
     mean_lon: np.ndarray                  # (nt,)
     mean_lat: np.ndarray                  # (nt,)
     meta: Dict[str, Any] = field(default_factory=dict)
+    stranded: Optional[np.ndarray] = None  # (nt, n_particles) ashore by then
+
+    def stranded_fraction(self, index: int = -1) -> float:
+        return 0.0 if self.stranded is None else float(self.stranded[index].mean())
 
     @property
     def n_steps(self) -> int:
@@ -151,7 +162,7 @@ def advect(
     realisation of the field error, not a random walk that averages itself out.
     """
     dt = int(config.DT_SECONDS if dt_seconds is None else dt_seconds)
-    alpha = config.ALPHA_WIND if alpha is None else float(alpha)
+    alpha = field_src.wind_factor() if alpha is None else float(alpha)
     deflection_deg = config.DEFLECTION_DEG if deflection_deg is None else float(deflection_deg)
     cn = config.CURRENT_NOISE_MS if current_noise is None else float(current_noise)
     wn = config.WIND_NOISE_MS if wind_noise is None else float(wind_noise)
@@ -174,6 +185,9 @@ def advect(
     times = [t]
     lons = [lon.copy()]
     lats = [lat.copy()]
+    stuck = np.zeros(n, dtype=bool)
+    free_start = land_mod.on_land(lon, lat)
+    strands = [stuck.copy()]
 
     for _ in range(n_steps):
         u1, v1 = _velocity(field_src, lat, lon, t, alpha, deflection_deg, du, dv, dwu, dwv)
@@ -189,14 +203,18 @@ def advect(
 
         x2 = x + sign * u2 * dt
         y2 = y + sign * v2 * dt
-        lon, lat = frame.to_deg(x2, y2)
-        lon = np.asarray(lon, dtype=float)
-        lat = np.asarray(lat, dtype=float)
+        new_lon, new_lat = frame.to_deg(x2, y2)
+        new_lon = np.asarray(new_lon, dtype=float)
+        new_lat = np.asarray(new_lat, dtype=float)
+        stuck |= land_mod.on_land(new_lon, new_lat) & ~free_start
+        lon = np.where(stuck, lon, new_lon)
+        lat = np.where(stuck, lat, new_lat)
         t = t + timedelta(seconds=sign * dt)
 
         times.append(t)
         lons.append(lon.copy())
         lats.append(lat.copy())
+        strands.append(stuck.copy())
 
     LON = np.vstack(lons)
     LAT = np.vstack(lats)
@@ -209,6 +227,7 @@ def advect(
         spread_km=spread,
         mean_lon=np.median(LON, axis=1),
         mean_lat=np.median(LAT, axis=1),
+        stranded=np.vstack(strands),
         meta={
             "alpha_wind": alpha,
             "deflection_deg": deflection_deg,
@@ -218,8 +237,81 @@ def advect(
             "wind_noise_ms": wn,
             "metocean_source": field_src.source,
             "metocean_synthetic": bool(field_src.synthetic),
+            "stranded_at_end": round(float(stuck.mean()), 3),
         },
     )
+
+
+def advect_released(
+    lon0: np.ndarray,
+    lat0: np.ndarray,
+    t_release: np.ndarray,
+    t_end,
+    field_src: MetoceanField,
+    dt_seconds: int = 900,
+    seed: int = None,
+    member: Optional[np.ndarray] = None,
+    noise_scale: float = 1.0,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Forward drift for parcels that each enter the water at their own time.
+
+    This is what a release hypothesis needs: a leak or a moving ship puts oil
+    in over hours, so parcel k starts at (lon0[k], lat0[k]) at t_release[k]
+    (epoch seconds) and drifts to t_end. Same velocity model and RK2 step as
+    `advect`. A parcel joins at the first step boundary after its release,
+    which with the default 15 minute step displaces it by under 150 m at
+    typical drift speeds.
+
+    The noise stands for error in the wind and current fields, so it belongs
+    to an ensemble member, not to a parcel: every parcel with the same
+    `member` id shares one realisation. Without `member`, each parcel is its
+    own member. `noise_scale=0` gives the noise-free drift.
+    """
+    alpha = field_src.wind_factor()
+    deflection_deg = config.DEFLECTION_DEG
+    rng = np.random.default_rng(config.RANDOM_SEED if seed is None else seed)
+
+    lon = np.asarray(lon0, dtype=float).copy()
+    lat = np.asarray(lat0, dtype=float).copy()
+    tr = np.asarray(t_release, dtype=float)
+    n = lon.size
+    grp = np.arange(n) if member is None else np.unique(np.asarray(member), return_inverse=True)[1]
+    m = int(grp.max()) + 1 if n else 0
+    s = float(noise_scale)
+    du = rng.normal(0.0, config.CURRENT_NOISE_MS * s, m)[grp]
+    dv = rng.normal(0.0, config.CURRENT_NOISE_MS * s, m)[grp]
+    dwu = rng.normal(0.0, config.WIND_NOISE_MS * s, m)[grp]
+    dwv = rng.normal(0.0, config.WIND_NOISE_MS * s, m)[grp]
+
+    te = _utc(t_end).timestamp()
+    t = float(tr.min()) if n else te
+    dt = float(dt_seconds)
+    stuck = np.zeros(n, dtype=bool)
+    free_start = land_mod.on_land(lon, lat)
+    while t < te - 1e-6:
+        step = min(dt, te - t)
+        a = (tr <= t + 1e-6) & ~stuck
+        if a.any():
+            when = datetime.fromtimestamp(t, tz=timezone.utc)
+            la, lo = lat[a], lon[a]
+            u1, v1 = _velocity(field_src, la, lo, when, alpha, deflection_deg,
+                               du[a], dv[a], dwu[a], dwv[a])
+            frame = LocalAEQD(float(np.mean(la)), float(np.mean(lo)))
+            x, y = frame.to_m(lo, la)
+            lo_m, la_m = frame.to_deg(x + u1 * step / 2.0, y + v1 * step / 2.0)
+            u2, v2 = _velocity(field_src, np.asarray(la_m, float), np.asarray(lo_m, float),
+                               when + timedelta(seconds=step / 2.0), alpha, deflection_deg,
+                               du[a], dv[a], dwu[a], dwv[a])
+            lo2, la2 = frame.to_deg(x + u2 * step, y + v2 * step)
+            lo2 = np.asarray(lo2, dtype=float)
+            la2 = np.asarray(la2, dtype=float)
+            ashore = land_mod.on_land(lo2, la2) & ~free_start[a]
+            idx = np.nonzero(a)[0]
+            lon[idx[~ashore]] = lo2[~ashore]
+            lat[idx[~ashore]] = la2[~ashore]
+            stuck[idx[ashore]] = True
+        t += step
+    return lon, lat
 
 
 def _velocity(field_src, lat, lon, t, alpha, deflection_deg, du, dv, dwu, dwv):
