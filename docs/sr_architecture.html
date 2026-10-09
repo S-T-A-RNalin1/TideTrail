@@ -1,0 +1,58 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>TideTrail SRM architecture</title>
+<style>
+  :root { --ink:#1d2320; --ink2:#46504a; --line:#b9c7bd; --col:#eef4ef; --head:#2d6a4f; --accent:#b0146d; --paper:#ffffff; }
+  html, body { margin:0; background:var(--paper); }
+  body { width:1824px; height:680px; font-family:"Segoe UI", Calibri, Arial, sans-serif; color:var(--ink); }
+  .row { display:flex; align-items:stretch; gap:0; padding:26px 22px; height:628px; box-sizing:border-box; }
+  .col { flex:1 1 0; background:var(--col); border:2px solid var(--line); border-radius:14px; padding:14px 14px 12px; display:flex; flex-direction:column; }
+  .col.model { border-color:var(--accent); background:#fbf0f6; }
+  .step { font:700 17px "Segoe UI", Arial; letter-spacing:.08em; color:var(--head); text-transform:uppercase; margin:0 0 2px; }
+  .model .step { color:var(--accent); }
+  h3 { margin:0 0 14px; font:700 30px "Segoe UI", Arial; line-height:1.15; }
+  ul { margin:0; padding:0 0 0 20px; font-size:22px; line-height:1.32; color:var(--ink2); }
+  li { margin:0 0 8px; }
+  li b { color:var(--ink); font-weight:600; }
+  .arrow { flex:0 0 34px; display:flex; align-items:center; justify-content:center; }
+  .arrow svg { width:30px; height:30px; }
+  .foot { position:absolute; left:22px; right:22px; bottom:10px; display:flex; justify-content:space-between; font-size:21px; color:var(--ink2); }
+  .foot b { color:var(--ink); }
+</style></head>
+<body>
+<div class="row">
+  <div class="col"><p class="step">Inputs</p><h3>Imagery</h3><ul>
+    <li><b>Sentinel-2</b> L2A, 10 m: blue, green, red, NIR</li>
+    <li><b>Reference</b> 0.6 m aerial (NAIP), for training and checking</li>
+    <li><b>Upload</b> any georeferenced GeoTIFF</li></ul></div>
+  <div class="arrow"><svg viewBox="0 0 30 30"><path d="M4 15h20M17 7l8 8-8 8" fill="none" stroke="#46504a" stroke-width="3"/></svg></div>
+  <div class="col"><p class="step">Pre-process</p><h3>Make pairs match</h3><ul>
+    <li>Reflectance, band order</li>
+    <li><b>Registration</b> by phase correlation</li>
+    <li><b>Radiometric</b> match to 10 m</li>
+    <li>Cloud screening, quality filter</li>
+    <li>Split by region</li></ul></div>
+  <div class="arrow"><svg viewBox="0 0 30 30"><path d="M4 15h20M17 7l8 8-8 8" fill="none" stroke="#46504a" stroke-width="3"/></svg></div>
+  <div class="col model"><p class="step">Model</p><h3>Residual CNN, 4x</h3><ul>
+    <li>Bicubic base plus <b>learned detail</b></li>
+    <li>Sub-pixel convolution</li>
+    <li>Predicts the <b>reflectance</b> and its <b>uncertainty</b></li>
+    <li>Trained on paired scenes</li></ul></div>
+  <div class="arrow"><svg viewBox="0 0 30 30"><path d="M4 15h20M17 7l8 8-8 8" fill="none" stroke="#46504a" stroke-width="3"/></svg></div>
+  <div class="col"><p class="step">Post-process</p><h3>Stay faithful</h3><ul>
+    <li>Tiled inference, no seams</li>
+    <li><b>Consistency step:</b> averages back to the measured 10 m</li>
+    <li>2.5 m GeoTIFF on the exact 4x grid</li></ul></div>
+  <div class="arrow"><svg viewBox="0 0 30 30"><path d="M4 15h20M17 7l8 8-8 8" fill="none" stroke="#46504a" stroke-width="3"/></svg></div>
+  <div class="col"><p class="step">Validate</p><h3>Against references</h3><ul>
+    <li>Held-out regions, 2.5 m aerial</li>
+    <li>PSNR, SSIM, spectral angle</li>
+    <li>NDVI, water edges, edges</li>
+    <li>Uncertainty checked against real error</li></ul></div>
+  <div class="arrow"><svg viewBox="0 0 30 30"><path d="M4 15h20M17 7l8 8-8 8" fill="none" stroke="#46504a" stroke-width="3"/></svg></div>
+  <div class="col"><p class="step">Output</p><h3>Console and API</h3><ul>
+    <li>Swipe compare, 10 m and 2.5 m</li>
+    <li>Uncertainty overlay</li>
+    <li>Two GeoTIFFs, REST API</li></ul></div>
+</div>
+<div class="foot"><span><b>Runs offline</b> on a laptop CPU, no GPU</span><span>10 m to 2.5 m, 16 times the pixels</span></div>
+</body></html>

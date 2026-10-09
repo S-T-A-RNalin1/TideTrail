@@ -11,8 +11,8 @@ high-resolution references. The pair built here is:
 
 NAIP (US National Agriculture Imagery Program) is public domain and carries a
 near-infrared band like Sentinel-2, which is why it is the reference. Both
-sources are read from Microsoft Planetary Computer, the same free STAC service
-the radar scripts use, so no account is needed. Run this once while online;
+sources are read from Microsoft Planetary Computer, a free STAC service,
+so no account is needed. Run this once while online;
 everything downstream reads the cached pairs.
 
 Three problems stand between two such images and a trustworthy training pair,

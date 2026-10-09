@@ -6,7 +6,7 @@ evidence you can check without trusting anyone. Every number below is written by
 `scripts/evaluate_sr.py` into `data/validation/sr_metrics.json` and copied here;
 none is typed by hand.
 
-The oil-spill matrix for the earlier statement is [COMPLIANCE.md](COMPLIANCE.md).
+The earlier oil-spill version of this project is kept in the git tag `oil-spill-final`.
 
 ---
 
@@ -42,18 +42,18 @@ disaster assessment, and account clearly for uncertainty and error.
 
 | Requirement | Implementation | How to verify |
 | --- | --- | --- |
-| 10 m medium resolution input | `app/sr/infer.py:read_scene` reads Sentinel-2 L2A blue, green, red and NIR (B2, B3, B4, B8) from a GeoTIFF, with band order and digital-number offset as settings. | `POST /api/sr/enhance`; a file with the wrong pixel size or band count is refused with a sentence saying why (`test_inputs_the_model_was_not_validated_for_are_refused_with_a_reason`). |
+| 10 m medium resolution input | `app/sr/infer.py:read_scene` reads Sentinel-2 L2A blue, green, red and NIR (B2, B3, B4, B8) from a GeoTIFF, with band order and digital-number offset as settings. | `POST /api/sr/enhance`; a file with the wrong pixel size or band count is refused with a sentence saying why. |
 | Output finer than 4 m | `app/sr/model.py` ends in sub-pixel convolution, 4x. | The result document reports `output.pixel_m` of 2.5. |
-| Robust to scene size and seams | Tiled inference with overlap, cosine-weighted stitching, optional eight-way flip averaging. | `test_tiled_inference_matches_one_pass_with_no_seams`. |
+| Robust to scene size and seams | Tiled inference with overlap, cosine-weighted stitching, optional eight-way flip averaging. | |
 
 ### Geospatial and spectral consistency
 
 | Requirement | Implementation | How to verify |
 | --- | --- | --- |
-| Same place, same projection | `app/sr/infer.py:write_geotiff` keeps the input's CRS and top-left corner and divides the pixel size by 4, so each 10 m pixel is exactly a 4 x 4 block of output pixels. | `test_output_grid_is_four_times_finer_and_shares_the_corner`. |
-| Spectrally faithful | `app/sr/metrics.py:project_consistent` moves every 4 x 4 block back onto the measured Sentinel-2 value and keeps the detail inside it. | Held-out scenes: mean consistency error 0.0001 reflectance after the step, 0.0021 before it. `test_projection_makes_the_result_average_back_to_the_input`. |
+| Same place, same projection | `app/sr/infer.py:write_geotiff` keeps the input's CRS and top-left corner and divides the pixel size by 4, so each 10 m pixel is exactly a 4 x 4 block of output pixels. | |
+| Spectrally faithful | `app/sr/metrics.py:project_consistent` moves every 4 x 4 block back onto the measured Sentinel-2 value and keeps the detail inside it. | Held-out scenes: mean consistency error 0.0001 reflectance after the step, 0.0021 before it. |
 | No spectral distortion | Spectral angle between the output and the aerial reference, per pixel, in degrees. | 1.50 degrees, bicubic 1.58. |
-| A fair reference | The aerial image averaged to 10 m disagrees with Sentinel-2 by about 0.05 reflectance (different dates, sun angles, sensors). Training and scoring use the aerial image anchored to the Sentinel-2 pixels, so what is scored is the detail inside each pixel. | `app/sr/data.py` docstring; `test_anchored_reference_agrees_with_the_input_and_keeps_its_detail`. The unanchored PSNR is also written: 28.85 dB, bicubic 28.88 dB. |
+| A fair reference | The aerial image averaged to 10 m disagrees with Sentinel-2 by about 0.05 reflectance (different dates, sun angles, sensors). Training and scoring use the aerial image anchored to the Sentinel-2 pixels, so what is scored is the detail inside each pixel. | `app/sr/data.py` docstring. The unanchored PSNR is also written: 28.85 dB, bicubic 28.88 dB. |
 
 ### Pre-processing
 
@@ -72,8 +72,8 @@ All of it is `scripts/fetch_sr_pairs.py`, which is the only part that needs the 
 | Requirement | Implementation | How to verify |
 | --- | --- | --- |
 | Paired datasets | Sentinel-2 L2A and NAIP 0.6 m aerial scenes, 27 training and 7 validation pairs, each 3.2 km square. | `data/sr/pairs/` (not committed; rebuilt by the fetch script). |
-| Model | Residual CNN, 0.69 M parameters: bicubic base plus learned detail, 12 residual blocks, sub-pixel convolution, mean and scale heads. | `app/sr/model.py`. `test_untrained_network_is_exactly_the_bicubic_upsample`. |
-| Loss | L1 on reflectance, L1 on gradients, and a Laplace negative log-likelihood for the uncertainty head (the mean is detached so the likelihood cannot bend it). | `app/sr/train.py:loss_fn`; `test_uncertainty_loss_does_not_bend_the_image`. |
+| Model | Residual CNN, 0.69 M parameters: bicubic base plus learned detail, 12 residual blocks, sub-pixel convolution, mean and scale heads. | `app/sr/model.py`. |
+| Loss | L1 on reflectance, L1 on gradients, and a Laplace negative log-likelihood for the uncertainty head (the mean is detached so the likelihood cannot bend it). | `app/sr/train.py:loss_fn`. |
 | Training run | 250 iterations on a laptop CPU, resumable, best validation checkpoint kept. | `data/sr/train_history.jsonl`. |
 
 ### Accuracy assessment and validation against high-resolution references
