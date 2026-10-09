@@ -1,5 +1,7 @@
 # SIH26143 compliance matrix
 
+This is the matrix for the earlier oil-spill statement. The super-resolution matrix is [SRM_COMPLIANCE.md](SRM_COMPLIANCE.md).
+
 Every mandatory clause of the problem statement, mapped to the code that
 implements it and the evidence you can check without trusting anyone.
 

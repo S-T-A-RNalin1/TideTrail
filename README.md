@@ -1,10 +1,58 @@
 # TideTrail
  
-**NTRO Oil Spill Attribution Console**
+**Sentinel-2 super-resolution mapping, and SAR oil-spill attribution**
 
-National Technical Research Organisation · Software · Theme: Disaster Management / Space Technology
+National Technical Research Organisation · Software · Theme: Space Technology
 
-TideTrail finds oil slicks in Sentinel-1 SAR imagery, runs the drift physics
+## Super-resolution mapping
+
+TideTrail turns free 10 m Sentinel-2 imagery (blue, green, red, NIR) into a 2.5 m
+image. A residual CNN adds learned detail to a bicubic enlargement, a consistency
+step moves every 10 m pixel back to the value the satellite measured, and a second
+output gives a per-pixel uncertainty. It is trained on paired Sentinel-2 and 0.6 m
+NAIP aerial scenes and scored on held-out regions. The console is at `/sr`.
+
+Measured on 4 held-out scenes in CO, LA, MN (250 training iterations, so an early checkpoint):
+
+| Metric | Bicubic | TideTrail |
+| --- | --- | --- |
+| PSNR, dB | 37.00 | 37.25 |
+| SSIM | 0.905 | 0.910 |
+| Spectral angle, degrees | 1.58 | 1.50 |
+| NDVI error | 0.027 | 0.026 |
+| Open-water overlap (IoU) | 0.811 | 0.842 |
+| Edge match F1 | 0.415 | 0.450 |
+| Consistency with the input | 0.0027 | 0.0001 |
+
+PSNR gain +0.25 dB (95% bootstrap interval +0.09 to +0.40), better on 4 of 4 scenes.
+Uncertainty rank correlation with real error 0.24; its 90% intervals cover 91% of pixels.
+
+The reference is the aerial image anchored to the Sentinel-2 pixels, because the aerial image
+averaged to 10 m differs from Sentinel-2 by about 0.05 reflectance (dates, sun angle, sensors).
+Against the unanchored aerial image the model is level with bicubic (28.85 dB against 28.88 dB).
+
+```bash
+python scripts/fetch_sr_pairs.py --split train --workers 4   # build pairs (network, once)
+python -m app.sr.train --iters 5000 --budget-min 150         # train, resumable
+python scripts/evaluate_sr.py                                # score on held-out regions
+python -m uvicorn app.main:app --port 8000                   # console at /sr
+```
+
+API: `POST /api/sr/enhance` (upload a GeoTIFF), `GET /api/sr/demos`, `POST /api/sr/demo/{name}`,
+`GET /api/sr/validation`. Code is in `app/sr/`, the checkpoint is `models/sr_x4.pt`, tests are `tests/test_sr.py`.
+
+Limits: a CNN only (no transformer or generative model); a short training run on 27 pairs and a small
+test set; validated on US regions only, since no free aerial reference exists for India, so the three
+bundled Indian scenes show the enhancement and its uncertainty but carry no accuracy score. Details and
+the clause-by-clause status are in [docs/SRM_COMPLIANCE.md](docs/SRM_COMPLIANCE.md).
+
+The sections below document the earlier SAR oil-spill attribution module.
+
+---
+
+## Oil-spill attribution module
+
+The oil-spill module finds oil slicks in Sentinel-1 SAR imagery, runs the drift physics
 backwards through real cached wind and current fields to estimate where and when
 the oil was released, projects where it goes next, pulls the AIS traffic that
 was around that origin, and ranks the vessels most worth investigating with the
@@ -28,6 +76,8 @@ cloud service, no login at run time, no CUDA requirement.
 
 ## Contents
 
+- [Super-resolution mapping](#super-resolution-mapping)
+- [Oil-spill attribution module](#oil-spill-attribution-module)
 - [The console](#the-console)
 - [The problem statement](#the-problem-statement)
 - [How TideTrail answers it](#how-tidetrail-answers-it)

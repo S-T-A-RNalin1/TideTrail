@@ -19,6 +19,7 @@ data/tiles/
 # Checkpoint weights: include trained model, ignore temporary/scratch weights
 models/*.pt
 !models/oil_unet_best.pt
+!models/sr_x4.pt
 
 # Scratch & temporary debug screenshots in root
 /*.png
@@ -56,3 +57,12 @@ data/jobs/*.part
 
 # operator uploads: radar, optical and their index
 data/uploads/
+
+# super-resolution: the paired scenes and training state are rebuilt by the scripts
+data/sr/pairs/
+data/sr/outputs/
+data/sr/fetch_log.jsonl
+models/sr_x4.state.pt
+models/sr_x4.state.tmp
+data/sr/.tokens.json
+deck/

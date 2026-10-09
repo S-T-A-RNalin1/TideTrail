@@ -1062,3 +1062,6 @@ label.probe input { accent-color: var(--accent); margin-top: 1px; flex: none; }
 .rship.unchecked { border: 2px solid var(--ink); background: transparent; box-shadow: 0 0 0 1.5px var(--panel); }
 .leaflet-marker-pane .rship { width: 11px; height: 11px; filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.6)); }
 .src-row > .rship { justify-self: center; }
+
+/* Link from the oil spill console to the super-resolution page. */
+a.navlink.sr-link { text-decoration: none; border-color: var(--line); background: var(--bg); }

@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TideTrail Super-resolution</title>
+<link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="/static/style.css?v=__V__">
+<link rel="stylesheet" href="/static/sr.css?v=__V__">
+<script>
+  try {
+    var t = localStorage.getItem("tidetrail-theme-v2");
+    if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  } catch (e) { /* private mode: chart day */ }
+</script>
+</head>
+<body>
+<div id="app">
+
+  <header class="appbar">
+    <a class="brand" href="/" aria-label="TideTrail home">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+        <path class="mk-trail" d="M7 24.5c3.5-.6 5.6-3.4 7.8-6.2s5.1-3.9 7.4-6.4 2.4-3.9 2.9-5"/>
+        <ellipse class="mk-slick" cx="6" cy="25" rx="4.2" ry="2.4" transform="rotate(-20 6 25)"/>
+        <circle class="mk-source" cx="25.5" cy="5.5" r="3.4"/>
+        <circle class="mk-dot" cx="25.5" cy="5.5" r="1.3"/>
+      </svg>
+      <span class="brand-text"><b>TIDETRAIL</b></span>
+    </a>
+    <nav class="mainnav" aria-label="Workspace">
+      <span class="navlink sr-here">Super-resolution</span>
+      <a class="navlink" href="/">Oil spill console</a>
+    </nav>
+    <div class="appbar-right">
+      <button id="theme" class="iconbtn" title="Chart day or night" aria-label="Switch chart day and night">
+        <svg class="ic-sun" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3"/></svg>
+        <svg class="ic-moon" viewBox="0 0 16 16"><path d="M13 9.5A5.5 5.5 0 1 1 6.5 3 4.5 4.5 0 0 0 13 9.5z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ============================================================ left rail -->
+  <aside class="rail rail-l">
+    <section class="rail-block">
+      <h2>Scenes</h2>
+      <div id="demos" class="scene-list"><p class="hint">loading</p></div>
+    </section>
+
+    <section class="rail-block">
+      <h2>Your Sentinel-2 image</h2>
+      <form id="form-sr">
+        <label class="field">GeoTIFF with blue, green, red, NIR (10 m)
+          <input type="file" name="file" id="file" accept=".tif,.tiff"></label>
+        <details class="settings">
+          <summary>Settings</summary>
+          <label class="field">Band numbers in the file (blue, green, red, NIR)
+            <input type="text" name="band_order" value="1,2,3,4" inputmode="numeric"></label>
+          <label class="field">Digital number offset (1000 for L2A after Jan 2022)
+            <input type="number" name="dn_offset" value="0" step="100" min="0"></label>
+          <label class="check"><input type="checkbox" name="tta"> Average 8 flipped views (slower, steadier)</label>
+          <label class="check"><input type="checkbox" name="project" checked> Keep each 10 m pixel's measured value</label>
+        </details>
+        <button type="submit" id="run" class="btn-primary">Enhance to 2.5 m</button>
+      </form>
+      <p class="hint">Sentinel-2 L2A bands B2, B3, B4 and B8, 10 m pixels. The file stays on this machine.</p>
+    </section>
+  </aside>
+
+  <!-- =========================================================== centre -->
+  <main class="centre">
+    <div class="centre-head">
+      <div class="ch-title"><h1 id="title">No image yet</h1></div>
+      <p class="ch-meta" id="meta">Pick a scene on the left or upload a Sentinel-2 image.</p>
+    </div>
+
+    <div id="mapwrap">
+      <div id="map"></div>
+      <div class="map-hud" id="readout">lat --.----&nbsp; lon ---.----</div>
+      <div id="swipe" hidden><div class="swipe-line"></div><div class="swipe-grip" aria-hidden="true">&#8644;</div>
+        <input type="range" id="swipe-range" min="0" max="1000" value="500" aria-label="Compare 10 m input with 2.5 m result">
+        <span class="swipe-tag l">10 m</span><span class="swipe-tag r">2.5 m</span></div>
+      <div id="busy"><div class="spinner"></div><span id="busytext">Enhancing</span></div>
+    </div>
+
+    <div id="modebar" role="tablist" aria-label="What to show">
+      <span class="kind-label">Show</span>
+      <div class="kinds" role="group" aria-label="Band combination">
+        <button class="kind" data-kind="colour" aria-pressed="true" disabled>Colour</button>
+        <button class="kind" data-kind="ndvi" aria-pressed="false" disabled title="Vegetation index, for crop monitoring">Vegetation</button>
+        <button class="kind" data-kind="water" aria-pressed="false" disabled title="Open water, for water edges and flood mapping">Water</button>
+      </div>
+      <span class="sep"></span>
+      <button class="mode" data-mode="input" role="tab" aria-selected="false" disabled>Sentinel-2, 10 m</button>
+      <button class="mode" data-mode="sr" role="tab" aria-selected="false" disabled>Super-resolved, 2.5 m</button>
+      <button class="mode" data-mode="compare" role="tab" aria-selected="false" disabled>Compare</button>
+      <label class="unc-toggle"><input type="checkbox" id="unc" disabled> Uncertainty</label>
+      <input type="range" id="unc-op" min="0" max="100" value="65" disabled aria-label="Uncertainty opacity">
+    </div>
+  </main>
+
+  <!-- ========================================================== right rail -->
+  <aside class="rail rail-r">
+    <div id="notices"></div>
+
+    <section class="rail-block">
+      <h2>Result</h2>
+      <div id="finding" class="finding"><span class="finding-k">Waiting</span>Pick a scene or upload an image, then enhance it.</div>
+      <div id="facts" class="facts"></div>
+    </section>
+
+    <section class="rail-block">
+      <h2>Can it be trusted? <span class="count" id="trust-count"></span></h2>
+      <div id="trust"><p class="hint">Consistency with the input and the model's own uncertainty appear after a run.</p></div>
+    </section>
+
+    <section class="rail-block">
+      <h2>Measured accuracy <span class="count" id="val-count"></span></h2>
+      <div id="validation"><p class="hint">loading</p></div>
+    </section>
+
+    <section class="rail-block">
+      <h2>Download</h2>
+      <div id="downloads"><p class="hint">GeoTIFFs on the 2.5 m grid appear after a run.</p></div>
+    </section>
+  </aside>
+</div>
+
+<script src="/static/vendor/leaflet/leaflet.js"></script>
+<script src="/static/sr.js?v=__V__"></script>
+</body>
+</html>

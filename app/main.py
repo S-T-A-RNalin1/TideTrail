@@ -25,6 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from . import config
 from .api import ais as ais_routes, data as data_routes, detect as detect_routes, drift as drift_routes
 from .api import health as health_routes, pipeline as pipeline_routes, report as report_routes
+from .api import sr as sr_routes
 
 log = logging.getLogger("tidetrace")
 
@@ -92,6 +93,7 @@ app.include_router(ais_routes.router)
 app.include_router(pipeline_routes.router)
 app.include_router(report_routes.router)
 app.include_router(data_routes.router)
+app.include_router(sr_routes.router)
 
 Path(config.STATIC_DIR).mkdir(parents=True, exist_ok=True)
 # Only what the console draws is served. The AIS store, the uploads and the job
@@ -115,13 +117,23 @@ def _asset_stamp() -> str:
     h = hashlib.sha256()
     h.update(config.VERSION.encode("utf-8"))
     static = Path(config.STATIC_DIR)
-    for name in ("app.js", "style.css", "index.html"):
+    for name in ("app.js", "style.css", "index.html", "sr.js", "sr.css", "sr.html"):
         f = static / name
         try:
             h.update(f.read_bytes())
         except OSError:
             h.update(b"missing")
     return h.hexdigest()[:12]
+
+
+@app.get("/sr", include_in_schema=False)
+def sr_page():
+    """The super-resolution console, served the same way as the main one."""
+    page = Path(config.STATIC_DIR) / "sr.html"
+    if not page.exists():
+        return JSONResponse({"error": "static/sr.html is missing"}, status_code=500)
+    html = page.read_text(encoding="utf-8").replace("__V__", _asset_stamp())
+    return HTMLResponse(html, headers={"Cache-Control": "no-store, must-revalidate"})
 
 
 @app.get("/", include_in_schema=False)
