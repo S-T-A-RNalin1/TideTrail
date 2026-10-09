@@ -70,3 +70,6 @@ tests/
 test_browser_verification.py
 test_playwright_exports.py
 test_run_job.py
+PROJECT_JOURNAL.md
+build_final_deck.py
+inspect_latest_job.py

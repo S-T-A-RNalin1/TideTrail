@@ -994,7 +994,6 @@ archive.
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), the two diagrams with their commentary
 - [docs/COMPLIANCE.md](docs/COMPLIANCE.md), clause by clause, with the test that asserts each one
-- [PROJECT_JOURNAL.md](PROJECT_JOURNAL.md), the build log, including what was tried and rejected
 
 ---
 

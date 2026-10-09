@@ -5,7 +5,7 @@ This is the matrix for the earlier oil-spill statement. The super-resolution mat
 Every mandatory clause of the problem statement, mapped to the code that
 implements it and the evidence you can check without trusting anyone.
 
-Read this next to `README.md` (limitations) and `PROJECT_JOURNAL.md` (history).
+Read this next to `README.md` (limitations).
 
 ---
 
