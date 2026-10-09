@@ -1,4 +1,4 @@
-"""Frozen configuration for TideTrace (SIH26143).
+"""Frozen configuration for TideTrail (SIH26142).
 
 Every constant in the FROZEN block comes straight from the spec sheet. Change
 them only through environment variables so that the shipped defaults stay
@@ -162,7 +162,7 @@ CLASS_NAMES = {0: "sea", 1: "look_alike", 2: "mineral_oil"}
 
 UI_TITLE = "NTRO Oil Spill Attribution Console"
 PROJECT_CODENAME = "TideTrace"
-SIH_ID = "SIH26143"
+SIH_ID = "SIH26142"
 VERSION = "1.5.0"
 
 

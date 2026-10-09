@@ -66,3 +66,7 @@ models/sr_x4.state.pt
 models/sr_x4.state.tmp
 data/sr/.tokens.json
 deck/
+tests/
+test_browser_verification.py
+test_playwright_exports.py
+test_run_job.py

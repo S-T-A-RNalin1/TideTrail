@@ -39,7 +39,7 @@ python -m uvicorn app.main:app --port 8000                   # console at /sr
 ```
 
 API: `POST /api/sr/enhance` (upload a GeoTIFF), `GET /api/sr/demos`, `POST /api/sr/demo/{name}`,
-`GET /api/sr/validation`. Code is in `app/sr/`, the checkpoint is `models/sr_x4.pt`, tests are `tests/test_sr.py`.
+`GET /api/sr/validation`. Code is in `app/sr/`, the checkpoint is `models/sr_x4.pt`.
 
 Limits: a CNN only (no transformer or generative model); a short training run on 27 pairs and a small
 test set; validated on US regions only, since no free aerial reference exists for India, so the three
@@ -69,7 +69,7 @@ The whole thing runs on one laptop with the network unplugged. No Docker, no
 cloud service, no login at run time, no CUDA requirement.
 
 ```
-160 tests passing  ·  IoU_oil 0.889 on the Zenodo validation tiles  ·  zero false alarms on clean sea
+IoU_oil 0.889 on the Zenodo validation tiles  ·  zero false alarms on clean sea
 ```
 
 ---
@@ -91,7 +91,6 @@ cloud service, no login at run time, no CUDA requirement.
 - [The source test](#the-source-test)
 - [Module map](#module-map)
 - [API](#api)
-- [Tests](#tests)
 - [Configuration](#configuration)
 - [Limitations](#limitations)
 - [Training](#training)
@@ -194,7 +193,7 @@ for the backtrack, magenta for the oil and its candidate sources.
 
 ## The problem statement
 
-> **26143.** Leveraging satellite imagery to determine oil spills at sea along
+> **Earlier statement.** Leveraging satellite imagery to determine oil spills at sea along
 > with AIS data correlations to identify the vessel responsible for the spill.
 
 Marine oil spills damage ecosystems and often stay unattributed to the vessel
@@ -711,7 +710,6 @@ app/
   jobs/store.py      job documents, the step trace, live progress, retention
   static/            index.html, app.js, style.css, vendor/leaflet
 scripts/             one-off data preparation; all network access lives here
-tests/               160 tests, including a network-blocked end to end run
 ```
 
 ---
@@ -742,47 +740,6 @@ tests/               160 tests, including a network-blocked end to end run
 | GET | `/api/ais/track/{mmsi}` | one reconstructed track |
 | GET | `/api/ais/window` | every vessel in a box and window |
 | GET | `/` | the console shell, uncached, with content-addressed asset URLs |
-
----
-
-## Tests
-
-```bash
-python -m pytest tests -q
-```
-
-160 tests. The ones that carry weight:
-
-- `test_advection`: 1 m/s for one hour is 3.6 km east; a backward run undoes a
-  forward run; wind contributes exactly 3 percent of its speed; the origin rule
-  stays inside its clip; two identical runs agree exactly.
-- `test_geo_centroid`: a polygon lands where the affine says to, better than
-  1e-4 degrees; area and orientation are correct; a mask with no CRS inherits
-  the SAR georeference; the builtin TIFF reader agrees with rasterio.
-- `test_ais_gap`: a 55 minute silence is reported as a gap and its bridged
-  samples are flagged dead reckoned; a 20 minute dropout is not; a gap across
-  the origin raises `ais_gap` and one far away does not; course interpolation
-  wraps through north.
-- `test_scoring`: the transiting tanker with a gap ranks first against
-  competitive distractors; a closer fishing boat still beats a distant tanker,
-  so geometry can overrule type; proximity separates the centre of an origin
-  zone from its edge instead of saturating across 200 km2; two identical vessels
-  two hours apart do not score the same; a vessel with two AIS receptions cannot
-  outrank one with six hundred; an empty candidate set produces an empty
-  leaderboard.
-- `test_pipeline_offline`: `/api/run` succeeds with every outbound socket and
-  DNS lookup blocked, produces every pipeline step, is byte-reproducible across
-  two runs, and returns no suspects rather than crashing on an empty AIS store.
-- `test_conformance_fixes`: regressions found by running the system rather than
-  reading it. Eight concurrent callers all get the same loaded model instead of
-  three silently falling through to the baseline; a genuine load failure is
-  recorded rather than reported as "unknown reason"; uniform water is reported
-  as clean water with its measured span and a dark patch is not; the baseline
-  threshold follows the water level on a scene at -17 dB and on one at -23 dB;
-  land is excluded from the water-level estimate; the run history is bounded
-  rather than filling the disk.
-- `test_offline_boundary`: no module under `app/` imports a network client, and
-  no token-shaped string is committed anywhere in the tree.
 
 ---
 

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tidetrace"
 version = "1.0.0"
-description = "Offline SAR oil slick detection, drift hindcast and forecast, and AIS vessel attribution. SIH26143, NTRO, Space Technology."
+description = "Sentinel-2 super-resolution mapping, plus offline SAR oil slick detection, drift hindcast and AIS vessel attribution. SIH26142, NTRO, Space Technology."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
